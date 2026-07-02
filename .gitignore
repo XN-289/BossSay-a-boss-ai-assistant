@@ -17,6 +17,7 @@ node_modules/
 # Build
 dist/
 build/
+*.zip
 
 # Secrets (should never be committed)
 .env

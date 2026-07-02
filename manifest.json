@@ -1,8 +1,10 @@
 {
   "manifest_version": 3,
   "name": "BossSay - Boss直聘AI智能打招呼助手",
-  "version": "1.0.0",
-  "description": "基于AI的Boss直聘智能打招呼插件，让你的每一条消息都精准、有诚意",
+  "version": "2.0.0",
+  "description": "基于AI的Boss直聘智能打招呼插件，读取岗位JD并结合你的简历生成个性化消息，提高HR回复率",
+  "author": "XN-289",
+  "homepage_url": "https://github.com/XN-289/Bosssay-a-boss-ai-assistant",
   "permissions": [
     "activeTab",
     "storage",
