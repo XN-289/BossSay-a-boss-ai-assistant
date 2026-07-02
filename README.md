@@ -103,12 +103,12 @@ HR 收到 100 条这样的消息，凭什么回你？
 
 | 推荐模型 | API 地址 | 模型名称 | 费用 |
 |---------|---------|---------|------|
+| 🟣 **DeepSeek** ⭐推荐 | `https://api.deepseek.com/v1` | `deepseek-chat` | 便宜量大，国内直连 |
 | 🟢 **通义千问** | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-turbo` | 注册送免费额度 |
-| 🔵 **智谱 GLM-4** | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-flash` | **完全免费** |
-| 🟣 **DeepSeek** | `https://api.deepseek.com/v1` | `deepseek-chat` | 极其便宜 |
+| 🔵 **智谱 GLM-4** | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-flash` | 完全免费 |
 | 🌙 **Moonshot** | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` | Kimi 背后的模型 |
 
-> 💡 **推荐新手用智谱 GLM-4-Flash**，完全免费，效果也不错。[点击注册](https://open.bigmodel.cn/)
+> 💡 **推荐用 DeepSeek**，便宜量大，国内直连无需翻墙，中文效果好。[点击注册](https://platform.deepseek.com/)
 
 填写 API Key 和模型名称后，点击 **🔗 测试连接** 验证是否配置成功。
 
