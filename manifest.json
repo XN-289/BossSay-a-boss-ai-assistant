@@ -13,7 +13,14 @@
   "host_permissions": [
     "https://www.zhipin.com/*",
     "https://zhipin.com/*",
-    "https://*.zhipin.com/*"
+    "https://*.zhipin.com/*",
+    "http://127.0.0.1:18752/*",
+    "https://api.deepseek.com/*",
+    "https://api.openai.com/*",
+    "https://*.openai.com/*",
+    "https://api.anthropic.com/*",
+    "https://*.anthropic.com/*",
+    "<all_urls>"
   ],
   "action": {
     "default_popup": "popup/popup.html",
@@ -34,9 +41,11 @@
         "https://www.zhipin.com/job_detail/*",
         "https://zhipin.com/job_detail/*",
         "https://www.zhipin.com/web/geek/job/*",
-        "https://zhipin.com/web/geek/job/*"
+        "https://zhipin.com/web/geek/job/*",
+        "https://www.zhipin.com/*",
+        "https://zhipin.com/*"
       ],
-      "js": ["content/content.js"],
+      "js": ["content/content.js", "content/api-caller.js"],
       "css": ["content/content.css"],
       "run_at": "document_idle"
     }
@@ -44,5 +53,11 @@
   "background": {
     "service_worker": "background/service-worker.js"
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["lib/pdf.worker.min.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "options_page": "options/options.html"
 }

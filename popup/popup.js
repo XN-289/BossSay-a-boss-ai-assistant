@@ -29,7 +29,15 @@
     btnRegen: $('btn-regen'),
     errorMsg: $('error-msg'),
     successMsg: $('success-msg'),
-    // 资料
+    // 资料 - PDF 上传
+    pdfDropArea: $('pdf-drop-area'),
+    pdfFileInput: $('pdf-file-input'),
+    pdfUploadStatus: $('pdf-upload-status'),
+    dividerOr: $('divider-or'),
+    debugLogPanel: $('debug-log-panel'),
+    debugLogBody: $('debug-log-body'),
+    debugLogClear: $('debug-log-clear'),
+    // 资料 - 表单
     inputResume: $('input-resume'),
     inputExperience: $('input-experience'),
     inputSkills: $('input-skills'),
@@ -245,6 +253,229 @@
       showSuccess('✅ 已复制到剪贴板');
     }
   });
+
+  // ==================== PDF 简历上传 ====================
+
+  // 点击上传区域
+  els.pdfDropArea.addEventListener('click', () => {
+    els.pdfFileInput.click();
+  });
+
+  // 拖拽上传
+  els.pdfDropArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    els.pdfDropArea.classList.add('dragover');
+  });
+
+  els.pdfDropArea.addEventListener('dragleave', () => {
+    els.pdfDropArea.classList.remove('dragover');
+  });
+
+  els.pdfDropArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    els.pdfDropArea.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type === 'application/pdf') {
+      uploadPDF(file);
+    } else {
+      showError('请上传 PDF 格式的文件');
+    }
+  });
+
+  // 文件选择
+  els.pdfFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) uploadPDF(file);
+  });
+
+  async function uploadPDF(file) {
+    const statusEl = els.pdfUploadStatus;
+    const statusIcon = statusEl.querySelector('.pdf-status-icon');
+    const statusText = statusEl.querySelector('.pdf-status-text');
+
+    // 清空上次日志
+    clearDebugLog();
+
+    // 显示解析中状态
+    statusEl.style.display = 'flex';
+    statusEl.className = 'pdf-upload-status loading';
+    statusIcon.textContent = '⏳';
+    statusText.textContent = `正在处理 ${file.name}...`;
+
+    debugLog(`📄 文件: ${file.name} (${(file.size/1024).toFixed(1)}KB)`, 'step');
+
+    try {
+      // 第一步：读取 PDF 文件
+      debugLog('📖 步骤1: 读取 PDF 文件...', 'step');
+      const arrayBuffer = await file.arrayBuffer();
+      debugLog(`✅ ArrayBuffer 读取成功 (${arrayBuffer.byteLength} bytes)`, 'ok');
+
+      // 第二步：提取文本
+      debugLog('🔍 步骤2: 提取 PDF 文本...', 'step');
+      debugLog('pdf.js 状态: ' + (typeof pdfjsLib !== 'undefined' ? '✅ 已加载' : '❌ 未加载'), typeof pdfjsLib !== 'undefined' ? 'ok' : 'warn');
+      let rawText;
+      try {
+        rawText = await PDFExtractor.extractText(arrayBuffer);
+      } catch (extractErr) {
+        debugLog('❌ PDFExtractor 报错: ' + extractErr.message, 'err');
+        throw new Error('PDF 文本提取失败: ' + extractErr.message);
+      }
+
+      const textLen = rawText?.length || 0;
+      debugLog(`提取到文本长度: ${textLen} 字符`, textLen > 10 ? 'ok' : 'warn');
+
+      if (textLen > 0) {
+        debugLog('前200字: ' + rawText.substring(0, 200), 'data');
+      }
+
+      if (!rawText || rawText.trim().length < 10) {
+        debugLog('⚠️ 文本过短，可能是扫描件（图片PDF）', 'err');
+        throw new Error('PDF 中未提取到有效文本（仅 ' + textLen + ' 字符）。可能是扫描件/图片PDF，请使用文字版 PDF。');
+      }
+
+      // 第三步：检查 AI 配置
+      debugLog('⚙️ 步骤3: 检查 AI 配置...', 'step');
+      const configResp = await chrome.runtime.sendMessage({ type: 'GET_API_CONFIG' });
+      const config = configResp?.config;
+      debugLog('API 响应: ' + JSON.stringify(configResp?.success), 'data');
+
+      if (!config?.apiKey || !config?.baseUrl || !config?.modelName) {
+        debugLog('❌ AI 配置不完整! apiKey=' + !!config?.apiKey + ' baseUrl=' + !!config?.baseUrl + ' model=' + config?.modelName, 'err');
+        throw new Error('NO_API_CONFIG');
+      }
+      debugLog(`✅ 模型: ${config.modelName}`, 'ok');
+      debugLog(`   URL: ${config.baseUrl}`, 'data');
+
+      // 第四步：调用 AI（通过 service worker + 轮询）
+      debugLog(`🤖 步骤4: 调用 AI (${config.modelName})...`, 'step');
+      const textForAI = rawText.substring(0, 6000);
+      debugLog(`发送给 AI 的文本长度: ${textForAI.length} 字符`, 'data');
+
+      const parsePrompt = `你是一个简历解析助手。请分析以下 PDF 提取的简历原始文本，将其整理为结构化的简历信息。
+
+请严格按照以下 JSON 格式返回（不要返回其他内容，只返回 JSON）：
+{
+  "summary": "简历摘要（包含姓名、学校、学历、求职意向等核心信息，2-3句话概括）",
+  "experience": "工作经历和项目经历（按时间倒序，包含公司名、职位、时间段、主要工作内容）",
+  "skills": "技能标签（用逗号分隔，如：React, Vue, Node.js, Python, MySQL）"
+}
+
+注意：
+- summary 只放概括性描述，不要放完整工作经历
+- experience 放具体的工作/项目经历详情
+- skills 提取所有技术技能，用英文逗号分隔
+- 如果信息不足，对应字段留空字符串
+
+简历原始文本：
+${textForAI}`;
+
+      let aiMessage;
+      try {
+        // 直接从 popup fetch（有 host_permissions）
+        debugLog('popup 直接 fetch API...', 'step');
+        let apiUrl = config.baseUrl.trim();
+        if (!apiUrl.endsWith('/')) apiUrl += '/';
+        apiUrl += 'chat/completions';
+        debugLog('URL: ' + apiUrl, 'data');
+
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + config.apiKey,
+          },
+          body: JSON.stringify({
+            model: config.modelName,
+            messages: [
+              { role: 'system', content: '你是一个专业的简历解析助手，擅长从非结构化文本中提取结构化信息。只返回JSON，不要返回其他内容。' },
+              { role: 'user', content: parsePrompt },
+            ],
+            temperature: 0.3,
+            max_tokens: 2000,
+          }),
+        });
+
+        debugLog('HTTP 状态: ' + response.status + ' ' + response.statusText, response.ok ? 'ok' : 'err');
+
+        if (!response.ok) {
+          const errBody = await response.text();
+          debugLog('错误响应: ' + errBody.substring(0, 500), 'err');
+          throw new Error('API 返回 ' + response.status + ': ' + errBody.substring(0, 200));
+        }
+
+        const data = await response.json();
+        aiMessage = data.choices?.[0]?.message?.content?.trim();
+        debugLog('AI 返回长度: ' + (aiMessage?.length || 0) + ' 字符', aiMessage ? 'ok' : 'err');
+        debugLog('AI 原始返回(前500字): ' + (aiMessage || '').substring(0, 500), 'data');
+      } catch (fetchErr) {
+        // 详细记录错误信息
+        debugLog('❌ fetch 异常类型: ' + fetchErr.constructor.name, 'err');
+        debugLog('❌ 错误消息: ' + fetchErr.message, 'err');
+        debugLog('❌ 错误名称: ' + fetchErr.name, 'err');
+
+        if (fetchErr.message.includes('Failed to fetch') || fetchErr.message.includes('NetworkError')) {
+          debugLog('⚠️ 可能原因: CORS 限制 / 网络不通 / SSL 错误', 'warn');
+          debugLog('⚠️ 请检查: 1)网络是否正常 2)API URL 是否正确 3)是否需要代理', 'warn');
+        }
+
+        throw new Error('fetch 失败: ' + fetchErr.message);
+      }
+
+      if (!aiMessage) {
+        debugLog('❌ AI 返回空内容', 'err');
+        throw new Error('AI 未能生成有效内容');
+      }
+
+      // 第五步：解析 JSON
+      debugLog('📝 步骤5: 解析 JSON...', 'step');
+      let parsed;
+      try {
+        const jsonMatch = aiMessage.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsed = JSON.parse(jsonMatch[0]);
+          debugLog('✅ JSON 解析成功', 'ok');
+          debugLog('summary=' + (parsed.summary?.substring(0, 80) || '空') + '...', 'data');
+          debugLog('experience=' + (parsed.experience?.substring(0, 80) || '空') + '...', 'data');
+          debugLog('skills=' + (parsed.skills || '空'), 'data');
+        } else {
+          debugLog('❌ 无法匹配 JSON，AI 返回: ' + aiMessage.substring(0, 200), 'err');
+          throw new Error('无法从 AI 返回中提取 JSON');
+        }
+      } catch (parseErr) {
+        debugLog('❌ JSON.parse 失败: ' + parseErr.message, 'err');
+        throw new Error('AI 返回格式异常，请重试。如果反复失败，请换一个模型试试。');
+      }
+
+      // 第六步：填充表单
+      debugLog('📋 步骤6: 填充表单...', 'step');
+      if (parsed.summary) els.inputResume.value = parsed.summary;
+      if (parsed.experience) els.inputExperience.value = parsed.experience;
+      if (parsed.skills) els.inputSkills.value = parsed.skills;
+
+      // 显示成功状态
+      statusEl.className = 'pdf-upload-status success';
+      statusIcon.textContent = '✅';
+      statusText.textContent = `✅ ${file.name} 解析成功，AI 已提取简历信息`;
+      els.dividerOr.style.display = 'flex';
+
+      debugLog('🎉 全部完成！信息已自动填入', 'ok');
+      showSuccess('✅ PDF 简历已通过 AI 智能解析，信息已自动填入');
+
+    } catch (err) {
+      debugLog('💥 错误: ' + err.message, 'err');
+      statusEl.className = 'pdf-upload-status error';
+      statusIcon.textContent = '❌';
+
+      if (err.message === 'NO_API_CONFIG') {
+        statusText.innerHTML = `❌ 需要先配置 AI 模型<br>
+          <span class="pdf-status-help">
+            请先在 <strong>⚙️ 设置</strong> 页面配置 API 地址和 API Key
+          </span>`;
+      } else {
+        statusText.textContent = '❌ ' + err.message;
+      }
+    }
+  }
 
   // ==================== 保存资料 ====================
 
@@ -505,6 +736,27 @@
   function hideMessages() {
     els.errorMsg.style.display = 'none';
     els.successMsg.style.display = 'none';
+  }
+
+  // ==================== 调试日志面板 ====================
+
+  function debugLog(text, type = 'step') {
+    if (!els.debugLogPanel || !els.debugLogBody) return;
+    els.debugLogPanel.style.display = 'block';
+    const line = document.createElement('div');
+    line.className = 'log-' + type;
+    const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+    line.textContent = `[${time}] ${text}`;
+    els.debugLogBody.appendChild(line);
+    els.debugLogBody.scrollTop = els.debugLogBody.scrollHeight;
+  }
+
+  function clearDebugLog() {
+    if (els.debugLogBody) els.debugLogBody.innerHTML = '';
+  }
+
+  if (els.debugLogClear) {
+    els.debugLogClear.addEventListener('click', clearDebugLog);
   }
 
   // ==================== 启动 ====================
