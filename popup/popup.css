@@ -1,0 +1,516 @@
+/* BossSay - Popup 样式 */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 400px;
+  min-height: 500px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  color: #333;
+  background: #f8f9fa;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  min-height: 500px;
+}
+
+/* ==================== 头部 ==================== */
+
+.header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  padding: 20px;
+  text-align: center;
+}
+
+.header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.header .subtitle {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+/* ==================== 导航标签 ==================== */
+
+.tabs {
+  display: flex;
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.tab {
+  flex: 1;
+  padding: 12px 8px;
+  background: none;
+  border: none;
+  font-size: 13px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  color: #667eea;
+  background: #f0f2ff;
+}
+
+.tab.active {
+  color: #667eea;
+  font-weight: 600;
+  border-bottom-color: #667eea;
+}
+
+/* ==================== 内容区域 ==================== */
+
+.tab-content {
+  display: none;
+  padding: 16px 20px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* ==================== 表单 ==================== */
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.required {
+  color: #ff4d4f;
+  font-size: 12px;
+}
+
+.optional {
+  color: #999;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.form-group input[type="text"],
+.form-group input[type="password"],
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #333;
+  background: #fff;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+}
+
+.form-group .help-text {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+}
+
+/* ==================== 按钮 ==================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-block {
+  display: flex;
+  width: 100%;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-success {
+  background: #52c41a;
+  color: #fff;
+}
+
+.btn-success:hover {
+  background: #73d13d;
+}
+
+.btn-secondary {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.btn-secondary:hover {
+  background: #e0e0e0;
+}
+
+.btn-danger {
+  background: #ff4d4f;
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: #ff7875;
+}
+
+/* ==================== 页面引导 ==================== */
+
+.page-guide {
+  text-align: center;
+  padding: 20px;
+  background: #fff;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  border: 1px dashed #d9d9d9;
+}
+
+.page-guide p {
+  color: #666;
+  line-height: 1.6;
+}
+
+/* ==================== 岗位信息卡片 ==================== */
+
+.job-info-card {
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  border: 1px solid #e8e8e8;
+}
+
+.job-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+
+.job-meta {
+  font-size: 13px;
+  color: #666;
+}
+
+/* ==================== 结果区域 ==================== */
+
+.result-area {
+  margin-top: 16px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #e8e8e8;
+}
+
+.result-area label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.result-area textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333;
+  resize: vertical;
+  min-height: 120px;
+  font-family: inherit;
+  transition: border-color 0.3s;
+}
+
+.result-area textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.result-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.result-actions .btn {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+/* ==================== 消息提示 ==================== */
+
+.error-msg {
+  padding: 10px 14px;
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #ff4d4f;
+  margin-top: 12px;
+}
+
+.success-msg {
+  padding: 10px 14px;
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #52c41a;
+  margin-top: 12px;
+}
+
+/* ==================== 预设模型 ==================== */
+
+.preset-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.preset-btn {
+  padding: 8px 12px;
+  background: #f0f2ff;
+  border: 1px solid #d6e0ff;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #667eea;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+}
+
+.preset-btn:hover {
+  background: #667eea;
+  color: #fff;
+  border-color: #667eea;
+}
+
+/* ==================== 危险区域 ==================== */
+
+.danger-zone {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #ffccc7;
+}
+
+.danger-zone h4 {
+  font-size: 14px;
+  color: #ff4d4f;
+  margin-bottom: 12px;
+}
+
+/* ==================== 底部 ==================== */
+
+.footer {
+  padding: 12px 20px;
+  text-align: center;
+  font-size: 12px;
+  color: #999;
+  border-top: 1px solid #e8e8e8;
+  background: #fff;
+}
+
+.footer a {
+  color: #667eea;
+  text-decoration: none;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
+
+/* ==================== 加载动画 ==================== */
+
+.loading {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #fff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ==================== 新增样式 ==================== */
+
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-row .btn {
+  flex: 1;
+}
+
+.about-info {
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.8;
+}
+
+.about-info a {
+  color: #667eea;
+  text-decoration: none;
+}
+
+.history-list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+
+.history-item {
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.history-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.history-msg {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-time {
+  font-size: 11px;
+  color: #999;
+}
+
+.style-name-input {
+  margin-bottom: 6px;
+}
+
+.style-prompt-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 13px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.style-prompt-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+/* ==================== 滚动条 ==================== */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #bbb;
+}

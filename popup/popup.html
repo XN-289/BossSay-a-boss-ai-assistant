@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BossSay</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- 头部 -->
+    <header class="header">
+      <h1>🎯 BossSay</h1>
+      <p class="subtitle">AI 智能打招呼助手 v2.0</p>
+    </header>
+
+    <!-- 导航标签 -->
+    <nav class="tabs">
+      <button class="tab active" data-tab="generate">✨ 生成</button>
+      <button class="tab" data-tab="profile">👤 资料</button>
+      <button class="tab" data-tab="settings">⚙️ 设置</button>
+      <button class="tab" data-tab="more">📦 更多</button>
+    </nav>
+
+    <!-- ==================== 生成消息页面 ==================== -->
+    <div class="tab-content active" id="tab-generate">
+      <div class="page-guide" id="page-guide">
+        <p>📌 请先打开 Boss 直聘的<strong>岗位详情页</strong></p>
+        <p style="font-size:12px;color:#999;margin-top:4px">页面上会出现「🎯 AI 一键打招呼」按钮</p>
+      </div>
+
+      <div class="job-info-card" id="job-info-card" style="display:none">
+        <div class="job-title" id="job-title"></div>
+        <div class="job-meta" id="job-meta"></div>
+      </div>
+
+      <div class="form-group">
+        <label>消息风格</label>
+        <select id="style-select">
+          <option value="professional">💼 专业正式</option>
+          <option value="friendly">🤝 热情亲切</option>
+          <option value="humor">😄 幽默轻松</option>
+          <option value="concise">📌 简洁明了</option>
+        </select>
+      </div>
+
+      <button class="btn btn-primary btn-block" id="btn-extract">
+        🔍 扫描当前页面岗位
+      </button>
+
+      <button class="btn btn-primary btn-block" id="btn-generate" style="display:none">
+        ✨ AI 生成打招呼消息
+      </button>
+
+      <div class="result-area" id="result-area" style="display:none">
+        <label>生成的消息（可编辑）：</label>
+        <textarea id="message-output" rows="6"></textarea>
+        <div class="result-actions">
+          <button class="btn btn-success" id="btn-fill">📝 填入</button>
+          <button class="btn btn-secondary" id="btn-copy">📋 复制</button>
+          <button class="btn btn-secondary" id="btn-regen">🔄 重生成</button>
+        </div>
+      </div>
+
+      <div class="error-msg" id="error-msg" style="display:none"></div>
+      <div class="success-msg" id="success-msg" style="display:none"></div>
+    </div>
+
+    <!-- ==================== 我的资料页面 ==================== -->
+    <div class="tab-content" id="tab-profile">
+      <div class="form-group">
+        <label>简历内容 <span class="required">*</span></label>
+        <textarea id="input-resume" rows="5" placeholder="粘贴你的简历关键内容..."></textarea>
+        <p class="help-text">支持自动压缩存储，不用担心长度限制</p>
+      </div>
+
+      <div class="form-group">
+        <label>个人经历 <span class="required">*</span></label>
+        <textarea id="input-experience" rows="4" placeholder="工作经历、项目经历..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>技能标签 <span class="required">*</span></label>
+        <input type="text" id="input-skills" placeholder="React, Vue, Node.js, Python...">
+      </div>
+
+      <div class="form-group">
+        <label>GitHub <span class="optional">选填</span></label>
+        <input type="text" id="input-github" placeholder="GitHub 用户名或仓库链接">
+      </div>
+
+      <div class="form-group">
+        <label>作品集 <span class="optional">选填</span></label>
+        <input type="text" id="input-portfolio" placeholder="个人网站或作品集 URL">
+      </div>
+
+      <div class="form-group">
+        <label>自我介绍 <span class="optional">选填</span></label>
+        <textarea id="input-selfintro" rows="3" placeholder="一段通用的自我介绍..."></textarea>
+      </div>
+
+      <button class="btn btn-primary btn-block" id="btn-save-profile">💾 保存资料</button>
+      <div class="success-msg" id="profile-success" style="display:none">✅ 资料已保存</div>
+    </div>
+
+    <!-- ==================== 设置页面 ==================== -->
+    <div class="tab-content" id="tab-settings">
+      <h3 class="section-title">🤖 AI 模型配置</h3>
+
+      <div class="form-group">
+        <label>API 地址 <span class="required">*</span></label>
+        <input type="text" id="input-api-url" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1">
+      </div>
+
+      <div class="form-group">
+        <label>API Key <span class="required">*</span></label>
+        <input type="password" id="input-api-key" placeholder="你的 API Key">
+      </div>
+
+      <div class="form-group">
+        <label>模型名称 <span class="required">*</span></label>
+        <input type="text" id="input-model" placeholder="qwen-turbo, deepseek-chat, glm-4-flash...">
+      </div>
+
+      <div class="form-group">
+        <label>快速选择</label>
+        <div class="preset-list">
+          <button class="preset-btn" data-url="https://dashscope.aliyuncs.com/compatible-mode/v1" data-model="qwen-turbo">通义千问</button>
+          <button class="preset-btn" data-url="https://open.bigmodel.cn/api/paas/v4" data-model="glm-4-flash">智谱GLM-4</button>
+          <button class="preset-btn" data-url="https://api.deepseek.com/v1" data-model="deepseek-chat">DeepSeek</button>
+          <button class="preset-btn" data-url="https://api.moonshot.cn/v1" data-model="moonshot-v1-8k">Moonshot</button>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-save-settings">💾 保存</button>
+        <button class="btn btn-secondary" id="btn-test-api">🔗 测试连接</button>
+      </div>
+
+      <div class="success-msg" id="settings-success" style="display:none">✅ 设置已保存</div>
+      <div class="error-msg" id="settings-error" style="display:none"></div>
+
+      <h3 class="section-title" style="margin-top:24px">🎨 风格自定义</h3>
+      <p class="help-text">你可以编辑每种风格的 prompt，让 AI 生成更符合你个性的消息</p>
+
+      <div id="style-editor">
+        <!-- 动态生成 -->
+      </div>
+
+      <button class="btn btn-primary btn-block" id="btn-save-styles" style="margin-top:12px">💾 保存风格配置</button>
+    </div>
+
+    <!-- ==================== 更多页面 ==================== -->
+    <div class="tab-content" id="tab-more">
+      <h3 class="section-title">📦 备份与恢复</h3>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-export">📤 导出设置</button>
+        <button class="btn btn-secondary" id="btn-import">📥 导入设置</button>
+      </div>
+
+      <div class="form-group" style="margin-top:12px">
+        <label>
+          <input type="checkbox" id="cb-exclude-key"> 排除 API Key
+        </label>
+        <label>
+          <input type="checkbox" id="cb-exclude-resume"> 排除简历内容
+        </label>
+      </div>
+
+      <input type="file" id="file-import" accept=".json" style="display:none">
+
+      <h3 class="section-title" style="margin-top:24px">📊 历史记录</h3>
+      <div id="history-list" class="history-list">
+        <p class="help-text">暂无历史记录</p>
+      </div>
+      <button class="btn btn-danger btn-block" id="btn-clear-history" style="margin-top:8px">🗑️ 清空历史</button>
+
+      <h3 class="section-title" style="margin-top:24px">⚠️ 危险操作</h3>
+      <button class="btn btn-danger btn-block" id="btn-clear-data">🗑️ 清除所有数据</button>
+
+      <h3 class="section-title" style="margin-top:24px">ℹ️ 关于</h3>
+      <div class="about-info">
+        <p><strong>BossSay</strong> v2.0.0</p>
+        <p>基于 AI 的 Boss 直聘智能打招呼助手</p>
+        <p>开源协议：MIT License</p>
+        <p><a href="https://github.com" target="_blank">GitHub 仓库</a></p>
+      </div>
+    </div>
+
+    <!-- 底部 -->
+    <footer class="footer">
+      <p>BossSay v2.0.0</p>
+    </footer>
+  </div>
+
+  <script src="../lib/storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "BossSay - Boss直聘AI智能打招呼助手",
+  "version": "1.0.0",
+  "description": "基于AI的Boss直聘智能打招呼插件，让你的每一条消息都精准、有诚意",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://www.zhipin.com/*",
+    "https://zhipin.com/*",
+    "https://*.zhipin.com/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.zhipin.com/job_detail/*",
+        "https://zhipin.com/job_detail/*",
+        "https://www.zhipin.com/web/geek/job/*",
+        "https://zhipin.com/web/geek/job/*"
+      ],
+      "js": ["content/content.js"],
+      "css": ["content/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "options_page": "options/options.html"
+}

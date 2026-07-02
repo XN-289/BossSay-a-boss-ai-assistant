@@ -1,0 +1,292 @@
+/* BossSay - Content Script 样式 */
+
+/* ==================== 生成按钮 ==================== */
+
+#boss-say-generate-btn {
+  display: inline-block;
+  margin: 8px 0;
+}
+
+.boss-say-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+.boss-say-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6);
+}
+
+.boss-say-btn:active {
+  transform: translateY(0);
+}
+
+.boss-say-btn svg {
+  flex-shrink: 0;
+}
+
+/* ==================== 结果面板 ==================== */
+
+#boss-say-panel {
+  position: fixed;
+  top: 100px;
+  right: 20px;
+  width: 420px;
+  max-height: 80vh;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  z-index: 999999;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  animation: boss-say-slide-in 0.3s ease;
+}
+
+@keyframes boss-say-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.boss-say-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  cursor: move;
+  user-select: none;
+}
+
+.boss-say-panel-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.boss-say-close-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  opacity: 0.8;
+  line-height: 1;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.boss-say-close-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.boss-say-panel-body {
+  padding: 20px;
+  overflow-y: auto;
+  max-height: calc(80vh - 60px);
+}
+
+/* 岗位信息 */
+.boss-say-job-info {
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.boss-say-job-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+
+.boss-say-job-meta {
+  font-size: 13px;
+  color: #666;
+}
+
+/* 风格选择 */
+.boss-say-style-selector {
+  margin-bottom: 16px;
+}
+
+.boss-say-style-selector label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.boss-say-style-selector select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #333;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.3s;
+}
+
+.boss-say-style-selector select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+/* 操作按钮 */
+.boss-say-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.boss-say-gen-btn,
+.boss-say-regen-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.boss-say-gen-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.boss-say-gen-btn:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.boss-say-gen-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.boss-say-regen-btn {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.boss-say-regen-btn:hover {
+  background: #e0e0e0;
+}
+
+/* 结果区域 */
+.boss-say-result label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.boss-say-result textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333;
+  resize: vertical;
+  min-height: 120px;
+  font-family: inherit;
+  transition: border-color 0.3s;
+  box-sizing: border-box;
+}
+
+.boss-say-result textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.boss-say-result-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.boss-say-fill-btn,
+.boss-say-copy-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.boss-say-fill-btn {
+  background: #52c41a;
+  color: #fff;
+}
+
+.boss-say-fill-btn:hover {
+  background: #73d13d;
+}
+
+.boss-say-copy-btn {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.boss-say-copy-btn:hover {
+  background: #e0e0e0;
+}
+
+/* 错误/成功信息 */
+.boss-say-error {
+  padding: 10px 14px;
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #ff4d4f;
+  margin-top: 12px;
+}
+
+/* ==================== 响应式 ==================== */
+
+@media (max-width: 480px) {
+  #boss-say-panel {
+    width: calc(100vw - 32px);
+    right: 16px;
+    top: 80px;
+  }
+}

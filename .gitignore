@@ -1,0 +1,27 @@
+# BossSay .gitignore
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node
+node_modules/
+
+# Build
+dist/
+build/
+
+# Secrets (should never be committed)
+.env
+*.key
+
+# Temporary files
+*.tmp
+*.log

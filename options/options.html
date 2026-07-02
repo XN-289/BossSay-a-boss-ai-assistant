@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BossSay - 设置</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #f5f7fa;
+      color: #333;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    header h1 {
+      font-size: 28px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+
+    header p {
+      color: #666;
+      font-size: 14px;
+    }
+
+    .section {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .section h2 {
+      font-size: 18px;
+      color: #1a1a1a;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 8px;
+    }
+
+    .form-group .required {
+      color: #ff4d4f;
+      font-size: 12px;
+    }
+
+    .form-group .optional {
+      color: #999;
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #d9d9d9;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #333;
+      background: #fff;
+      transition: border-color 0.3s, box-shadow 0.3s;
+      font-family: inherit;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 100px;
+      line-height: 1.6;
+    }
+
+    .form-group .help-text {
+      font-size: 12px;
+      color: #999;
+      margin-top: 6px;
+    }
+
+    .preset-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .preset-btn {
+      padding: 10px 14px;
+      background: #f0f2ff;
+      border: 1px solid #d6e0ff;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #667eea;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-align: center;
+    }
+
+    .preset-btn:hover {
+      background: #667eea;
+      color: #fff;
+      border-color: #667eea;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn-block {
+      display: flex;
+      width: 100%;
+    }
+
+    .btn-danger {
+      background: #ff4d4f;
+      color: #fff;
+    }
+
+    .btn-danger:hover {
+      background: #ff7875;
+    }
+
+    .success-msg {
+      display: none;
+      padding: 12px 16px;
+      background: #f6ffed;
+      border: 1px solid #b7eb8f;
+      border-radius: 8px;
+      color: #52c41a;
+      font-size: 14px;
+      margin-top: 16px;
+    }
+
+    .error-msg {
+      display: none;
+      padding: 12px 16px;
+      background: #fff2f0;
+      border: 1px solid #ffccc7;
+      border-radius: 8px;
+      color: #ff4d4f;
+      font-size: 14px;
+      margin-top: 16px;
+    }
+
+    .danger-zone {
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 2px solid #ffccc7;
+    }
+
+    .danger-zone h3 {
+      font-size: 16px;
+      color: #ff4d4f;
+      margin-bottom: 16px;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #e8e8e8;
+      color: #999;
+      font-size: 13px;
+    }
+
+    footer a {
+      color: #667eea;
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎯 BossSay 设置</h1>
+      <p>配置你的个人信息和 AI 模型，让 AI 为你生成最精准的打招呼消息</p>
+    </header>
+
+    <!-- 个人信息 -->
+    <div class="section">
+      <h2>👤 个人信息</h2>
+
+      <div class="form-group">
+        <label>简历内容 <span class="required">*</span></label>
+        <textarea id="opt-resume" rows="5" placeholder="粘贴你的简历关键内容，或简历摘要..."></textarea>
+        <p class="help-text">包含你的教育背景、工作经历、项目经验等关键信息</p>
+      </div>
+
+      <div class="form-group">
+        <label>个人经历 <span class="required">*</span></label>
+        <textarea id="opt-experience" rows="4" placeholder="你的核心工作经历、重要项目经历等..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>技能标签 <span class="required">*</span></label>
+        <input type="text" id="opt-skills" placeholder="如：React, Vue, Node.js, Python, Java...">
+        <p class="help-text">用逗号分隔你的主要技术栈和技能</p>
+      </div>
+
+      <div class="form-group">
+        <label>GitHub 仓库 <span class="optional">选填</span></label>
+        <input type="text" id="opt-github" placeholder="GitHub 用户名或重点仓库链接">
+      </div>
+
+      <div class="form-group">
+        <label>作品集链接 <span class="optional">选填</span></label>
+        <input type="text" id="opt-portfolio" placeholder="个人网站、作品集、博客等 URL">
+      </div>
+
+      <div class="form-group">
+        <label>自我介绍 <span class="optional">选填</span></label>
+        <textarea id="opt-selfintro" rows="3" placeholder="一段通用的自我介绍，帮助 AI 更了解你的风格和特点..."></textarea>
+      </div>
+
+      <button class="btn btn-primary btn-block" id="btn-save-profile">💾 保存个人信息</button>
+      <div class="success-msg" id="profile-success">✅ 个人信息已保存</div>
+    </div>
+
+    <!-- AI 模型配置 -->
+    <div class="section">
+      <h2>🤖 AI 模型配置</h2>
+
+      <div class="form-group">
+        <label>API 地址 <span class="required">*</span></label>
+        <input type="text" id="opt-api-url" placeholder="如：https://dashscope.aliyuncs.com/compatible-mode/v1">
+        <p class="help-text">OpenAI 兼容的 API 端点地址</p>
+      </div>
+
+      <div class="form-group">
+        <label>API Key <span class="required">*</span></label>
+        <input type="password" id="opt-api-key" placeholder="你的 API Key">
+      </div>
+
+      <div class="form-group">
+        <label>模型名称 <span class="required">*</span></label>
+        <input type="text" id="opt-model" placeholder="如：qwen-turbo, glm-4-flash, deepseek-chat">
+      </div>
+
+      <div class="form-group">
+        <label>快速选择预设模型</label>
+        <div class="preset-list">
+          <button class="preset-btn" data-url="https://dashscope.aliyuncs.com/compatible-mode/v1" data-model="qwen-turbo">
+            🟢 通义千问 (qwen-turbo)
+          </button>
+          <button class="preset-btn" data-url="https://open.bigmodel.cn/api/paas/v4" data-model="glm-4-flash">
+            🔵 智谱 GLM-4-Flash
+          </button>
+          <button class="preset-btn" data-url="https://api.deepseek.com/v1" data-model="deepseek-chat">
+            🟣 DeepSeek Chat
+          </button>
+          <button class="preset-btn" data-url="https://api.moonshot.cn/v1" data-model="moonshot-v1-8k">
+            🌙 Moonshot v1
+          </button>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-block" id="btn-save-api">💾 保存 API 配置</button>
+      <div class="success-msg" id="api-success">✅ API 配置已保存</div>
+    </div>
+
+    <!-- 危险操作 -->
+    <div class="section danger-zone">
+      <h3>⚠️ 危险操作</h3>
+      <button class="btn btn-danger btn-block" id="btn-clear-all">🗑️ 清除所有数据</button>
+      <p class="help-text" style="margin-top:8px">清除后所有保存的个人信息和配置将丢失，不可恢复</p>
+    </div>
+
+    <footer>
+      <p>BossSay v1.0.0 · MIT License</p>
+    </footer>
+  </div>
+
+  <script src="../lib/storage.js"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      // 加载数据
+      async function loadData() {
+        try {
+          // 加载个人信息
+          const profileResp = await chrome.runtime.sendMessage({ type: 'GET_PROFILE' });
+          if (profileResp?.success) {
+            const p = profileResp.profile;
+            document.getElementById('opt-resume').value = p.bossSay_resume || '';
+            document.getElementById('opt-experience').value = p.bossSay_experience || '';
+            document.getElementById('opt-skills').value = p.bossSay_skills || '';
+            document.getElementById('opt-github').value = p.bossSay_github || '';
+            document.getElementById('opt-portfolio').value = p.bossSay_portfolio || '';
+            document.getElementById('opt-selfintro').value = p.bossSay_selfIntro || '';
+          }
+
+          // 加载 API 配置
+          const apiResp = await chrome.runtime.sendMessage({ type: 'GET_API_CONFIG' });
+          if (apiResp?.success) {
+            const c = apiResp.config;
+            document.getElementById('opt-api-url').value = c.baseUrl || '';
+            document.getElementById('opt-api-key').value = c.apiKey || '';
+            document.getElementById('opt-model').value = c.modelName || '';
+          }
+        } catch (e) {
+          console.error('加载数据失败:', e);
+        }
+      }
+
+      // 保存个人信息
+      document.getElementById('btn-save-profile').addEventListener('click', async () => {
+        const profile = {
+          bossSay_resume: document.getElementById('opt-resume').value.trim(),
+          bossSay_experience: document.getElementById('opt-experience').value.trim(),
+          bossSay_skills: document.getElementById('opt-skills').value.trim(),
+          bossSay_github: document.getElementById('opt-github').value.trim(),
+          bossSay_portfolio: document.getElementById('opt-portfolio').value.trim(),
+          bossSay_selfIntro: document.getElementById('opt-selfintro').value.trim(),
+        };
+
+        if (!profile.bossSay_resume && !profile.bossSay_experience) {
+          alert('请至少填写简历或个人经历中的一项');
+          return;
+        }
+
+        try {
+          const resp = await chrome.runtime.sendMessage({ type: 'SAVE_PROFILE', data: profile });
+          if (resp?.success) {
+            const el = document.getElementById('profile-success');
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 3000);
+          }
+        } catch (e) {
+          alert('保存失败：' + e.message);
+        }
+      });
+
+      // 保存 API 配置
+      document.getElementById('btn-save-api').addEventListener('click', async () => {
+        const config = {
+          baseUrl: document.getElementById('opt-api-url').value.trim(),
+          apiKey: document.getElementById('opt-api-key').value.trim(),
+          modelName: document.getElementById('opt-model').value.trim(),
+        };
+
+        if (!config.apiKey || !config.baseUrl || !config.modelName) {
+          alert('请填写完整的 API 配置');
+          return;
+        }
+
+        if (!config.baseUrl.endsWith('/')) {
+          config.baseUrl += '/';
+        }
+
+        try {
+          const resp = await chrome.runtime.sendMessage({ type: 'SAVE_API_CONFIG', data: config });
+          if (resp?.success) {
+            const el = document.getElementById('api-success');
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 3000);
+          }
+        } catch (e) {
+          alert('保存失败：' + e.message);
+        }
+      });
+
+      // 预设模型
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.getElementById('opt-api-url').value = btn.dataset.url;
+          document.getElementById('opt-model').value = btn.dataset.model;
+        });
+      });
+
+      // 清除数据
+      document.getElementById('btn-clear-all').addEventListener('click', async () => {
+        if (!confirm('确定要清除所有数据吗？此操作不可撤销。')) return;
+        try {
+          await chrome.storage.local.clear();
+          window.location.reload();
+        } catch (e) {
+          alert('清除失败：' + e.message);
+        }
+      });
+
+      loadData();
+    })();
+  </script>
+</body>
+</html>
