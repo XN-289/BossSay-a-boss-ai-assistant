@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="icons/icon128.png" alt="BossSay Logo" width="100">
+  <img src="icons/icon128.png?v=2" alt="BossSay Logo" width="100">
 </p>
 
 <h1 align="center">BossSay</h1>
