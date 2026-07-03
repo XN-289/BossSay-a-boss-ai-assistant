@@ -166,16 +166,55 @@
     var location = extractField(['.job-area', '[class*="job-area"]']);
     var company = extractField(['.company-name', '[class*="company-name"]']);
 
-    // 提取 JD：遍历所有 div，找包含 JD 关键词且非 CSS 的内容
+    // 提取 JD：多种策略
     var jd = '';
-    var divs = document.querySelectorAll('div, section, p');
-    for (var i = 0; i < divs.length; i++) {
-      var text = divs[i].textContent?.trim() || '';
+
+    // 策略1：找包含 JD 关键词的段落（textContent）
+    var allEls = document.querySelectorAll('div, section, p, li, span');
+    for (var i = 0; i < allEls.length; i++) {
+      var text = allEls[i].textContent?.trim() || '';
       if (text.length > 50 && text.length < 3000 && !isCSS(text)) {
         if (/岗位职责|工作内容|任职要求|岗位要求|职位描述|工作职责/.test(text)) {
           jd = text;
           break;
         }
+      }
+    }
+
+    // 策略2：如果 textContent 全是 CSS，试试 innerHTML 中的纯文本节点
+    if (!jd) {
+      var detailEls = document.querySelectorAll('[class*="job-detail"], [class*="detail-content"], [class*="job-desc"], [class*="job-sec"]');
+      for (var j = 0; j < detailEls.length; j++) {
+        var el = detailEls[j];
+        // 遍历子节点，只取文本节点
+        var textParts = [];
+        var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+        var node;
+        while (node = walker.nextNode()) {
+          var t = node.textContent.trim();
+          if (t && t.length > 1 && !t.includes('{') && !t.includes('display') && !t.includes('font-size')) {
+            textParts.push(t);
+          }
+        }
+        var combined = textParts.join(' ').trim();
+        if (combined.length > 50) {
+          jd = combined;
+          break;
+        }
+      }
+    }
+
+    // 策略3：从 innerHTML 提取纯文本（去掉所有标签和属性）
+    if (!jd) {
+      var body = document.body.innerHTML || '';
+      // 去掉所有 <style> 和 <script> 标签
+      var cleaned = body.replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<script[\s\S]*?<\/script>/gi, '');
+      // 去掉所有 HTML 标签，只留文本
+      var plainText = cleaned.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+      // 找 JD 关键词附近的内容
+      var jdMatch = plainText.match(/(岗位职责|工作内容|任职要求|岗位要求|职位描述)[：:]*\s*([\s\S]{50,2000}?)(?=(公司介绍|公司信息|福利待遇|工作地址|联系HR|$))/);
+      if (jdMatch) {
+        jd = jdMatch[0].trim();
       }
     }
 
@@ -283,7 +322,9 @@
 
       // 方案2：DOM 提取（降级）
       jobInfo = extractFromDOM();
-      debug.push('DOM:' + (jobInfo.title || '无'));
+      debug.push('title:' + (jobInfo.title || '无'));
+      debug.push('company:' + (jobInfo.company || '无'));
+      debug.push('JD:' + (jobInfo.jd ? jobInfo.jd.length + '字' : '无'));
 
       // 方案3：通过 service worker 调 API（不触发页面安全检测）
       if (jobId) {
