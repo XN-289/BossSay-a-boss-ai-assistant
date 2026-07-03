@@ -159,6 +159,58 @@
     return '';
   }
 
+  /**
+   * 自动选中 JD 区域并复制到剪贴板，然后读取
+   * 浏览器复制的是渲染后的可见文字，不受 CSS 混淆影响
+   */
+  async function autoCopyJD() {
+    // 找 JD 容器
+    var jdContainer = null;
+    var selectors = [
+      '[class*="job-detail"]', '[class*="detail-content"]',
+      '[class*="job-desc"]', '[class*="job-sec"]',
+      '[class*="job-detail-section"]', '.detail-content',
+    ];
+    for (var i = 0; i < selectors.length; i++) {
+      var el = document.querySelector(selectors[i]);
+      if (el && el.textContent.length > 50) {
+        jdContainer = el;
+        break;
+      }
+    }
+
+    if (!jdContainer) return '';
+
+    // 保存原始选区
+    var oldSelection = window.getSelection();
+    var hadOldRange = oldSelection.rangeCount > 0;
+    var oldRange = hadOldRange ? oldSelection.getRangeAt(0).cloneRange() : null;
+
+    try {
+      // 选中 JD 容器的内容
+      var range = document.createRange();
+      range.selectNodeContents(jdContainer);
+      oldSelection.removeAllRanges();
+      oldSelection.addRange(range);
+
+      // 复制到剪贴板
+      document.execCommand('copy');
+
+      // 读取剪贴板
+      var clipText = await navigator.clipboard.readText();
+
+      return clipText || '';
+    } catch (e) {
+      return '';
+    } finally {
+      // 恢复原始选区
+      oldSelection.removeAllRanges();
+      if (oldRange) {
+        oldSelection.addRange(oldRange);
+      }
+    }
+  }
+
   function extractFromDOM() {
     // 提取元信息
     var title = extractField(['.job-name', '[class*="job-name"]', 'h1']);
@@ -166,11 +218,9 @@
     var location = extractField(['.job-area', '[class*="job-area"]']);
     var company = extractField(['.company-name', '[class*="company-name"]']);
 
-    // 提取 JD：多种策略
+    // JD 提取：textContent 先试
     var jd = '';
-
-    // 策略1：找包含 JD 关键词的段落（textContent）
-    var allEls = document.querySelectorAll('div, section, p, li, span');
+    var allEls = document.querySelectorAll('div, section, p, li');
     for (var i = 0; i < allEls.length; i++) {
       var text = allEls[i].textContent?.trim() || '';
       if (text.length > 50 && text.length < 3000 && !isCSS(text)) {
@@ -178,43 +228,6 @@
           jd = text;
           break;
         }
-      }
-    }
-
-    // 策略2：如果 textContent 全是 CSS，试试 innerHTML 中的纯文本节点
-    if (!jd) {
-      var detailEls = document.querySelectorAll('[class*="job-detail"], [class*="detail-content"], [class*="job-desc"], [class*="job-sec"]');
-      for (var j = 0; j < detailEls.length; j++) {
-        var el = detailEls[j];
-        // 遍历子节点，只取文本节点
-        var textParts = [];
-        var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
-        var node;
-        while (node = walker.nextNode()) {
-          var t = node.textContent.trim();
-          if (t && t.length > 1 && !t.includes('{') && !t.includes('display') && !t.includes('font-size')) {
-            textParts.push(t);
-          }
-        }
-        var combined = textParts.join(' ').trim();
-        if (combined.length > 50) {
-          jd = combined;
-          break;
-        }
-      }
-    }
-
-    // 策略3：从 innerHTML 提取纯文本（去掉所有标签和属性）
-    if (!jd) {
-      var body = document.body.innerHTML || '';
-      // 去掉所有 <style> 和 <script> 标签
-      var cleaned = body.replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<script[\s\S]*?<\/script>/gi, '');
-      // 去掉所有 HTML 标签，只留文本
-      var plainText = cleaned.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
-      // 找 JD 关键词附近的内容
-      var jdMatch = plainText.match(/(岗位职责|工作内容|任职要求|岗位要求|职位描述)[：:]*\s*([\s\S]{50,2000}?)(?=(公司介绍|公司信息|福利待遇|工作地址|联系HR|$))/);
-      if (jdMatch) {
-        jd = jdMatch[0].trim();
       }
     }
 
@@ -357,6 +370,13 @@
       cachedJobInfo = jobInfo;
       safeResponse(sendResponse, { success: true, jobInfo: jobInfo });
       return false;
+    }
+
+    if (request.type === 'AUTO_COPY_JD') {
+      autoCopyJD().then(function(jd) {
+        safeResponse(sendResponse, { success: !!jd, jd: jd });
+      });
+      return true; // async
     }
 
     if (request.type === 'FILL_MESSAGE') {
