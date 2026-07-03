@@ -160,8 +160,8 @@
   }
 
   /**
-   * 自动选中 JD 区域并复制到剪贴板，然后读取
-   * 浏览器复制的是渲染后的可见文字，不受 CSS 混淆影响
+   * 自动选中 JD 区域并复制到剪贴板
+   * 步骤：注入CSS解锁选中 → 选中JD容器 → 复制 → 读取剪贴板 → 移除注入CSS
    */
   async function autoCopyJD() {
     // 找 JD 容器
@@ -170,6 +170,8 @@
       '[class*="job-detail"]', '[class*="detail-content"]',
       '[class*="job-desc"]', '[class*="job-sec"]',
       '[class*="job-detail-section"]', '.detail-content',
+      '[class*="job-detail"] [class*="text"]',
+      '[class*="detail"] [class*="content"]',
     ];
     for (var i = 0; i < selectors.length; i++) {
       var el = document.querySelector(selectors[i]);
@@ -181,33 +183,39 @@
 
     if (!jdContainer) return '';
 
+    // 注入 CSS 强制解锁文字选中
+    var style = document.createElement('style');
+    style.id = 'boss-say-unselect-fix';
+    style.textContent = '*, *::before, *::after { user-select: auto !important; -webkit-user-select: auto !important; }';
+    document.head.appendChild(style);
+
     // 保存原始选区
-    var oldSelection = window.getSelection();
-    var hadOldRange = oldSelection.rangeCount > 0;
-    var oldRange = hadOldRange ? oldSelection.getRangeAt(0).cloneRange() : null;
+    var sel = window.getSelection();
+    var hadOld = sel.rangeCount > 0;
+    var oldRange = hadOld ? sel.getRangeAt(0).cloneRange() : null;
 
     try {
-      // 选中 JD 容器的内容
+      // 选中 JD 容器的全部内容
       var range = document.createRange();
       range.selectNodeContents(jdContainer);
-      oldSelection.removeAllRanges();
-      oldSelection.addRange(range);
+      sel.removeAllRanges();
+      sel.addRange(range);
 
       // 复制到剪贴板
       document.execCommand('copy');
 
       // 读取剪贴板
       var clipText = await navigator.clipboard.readText();
-
       return clipText || '';
     } catch (e) {
       return '';
     } finally {
-      // 恢复原始选区
-      oldSelection.removeAllRanges();
-      if (oldRange) {
-        oldSelection.addRange(oldRange);
-      }
+      // 恢复
+      sel.removeAllRanges();
+      if (oldRange) sel.addRange(oldRange);
+      // 移除注入的 CSS
+      var fix = document.getElementById('boss-say-unselect-fix');
+      if (fix) fix.remove();
     }
   }
 
