@@ -179,9 +179,10 @@
         els.btnGenerate.style.display = 'flex';
         els.resultArea.style.display = 'none';
 
-        // 调试信息：显示提取到的 JD 前200字
+        // 调试信息：显示数据来源和 JD 前200字
+        const source = currentJobInfo.source === 'api' ? 'API' : 'DOM';
         const jdPreview = currentJobInfo.jd ? currentJobInfo.jd.substring(0, 200) : '(空)';
-        showSuccess('✅ 扫描成功 | JD前200字: ' + jdPreview);
+        showSuccess('✅ 扫描成功[' + source + '] JD: ' + jdPreview);
       } else {
         showError('未能从当前页面提取岗位信息');
       }
