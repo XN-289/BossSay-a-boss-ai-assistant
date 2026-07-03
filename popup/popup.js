@@ -288,6 +288,56 @@
     if (file) uploadPDF(file);
   });
 
+  /**
+   * 通用 AI API 调用函数
+   * @param {object} config - { baseUrl, apiKey, modelName }
+   * @param {object} requestBody - 完整的请求体
+   * @returns {Promise<string>} AI 返回的文本内容
+   */
+  async function callAIAPI(config, requestBody) {
+    debugLog('popup 直接 fetch API...', 'step');
+    let apiUrl = config.baseUrl.trim();
+    if (!apiUrl.endsWith('/')) apiUrl += '/';
+    apiUrl += 'chat/completions';
+    debugLog('URL: ' + apiUrl, 'data');
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + config.apiKey,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      debugLog('HTTP 状态: ' + response.status + ' ' + response.statusText, response.ok ? 'ok' : 'err');
+
+      if (!response.ok) {
+        const errBody = await response.text();
+        debugLog('错误响应: ' + errBody.substring(0, 500), 'err');
+        throw new Error('API 返回 ' + response.status + ': ' + errBody.substring(0, 200));
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content?.trim();
+      debugLog('AI 返回长度: ' + (content?.length || 0) + ' 字符', content ? 'ok' : 'err');
+      debugLog('AI 原始返回(前500字): ' + (content || '').substring(0, 500), 'data');
+      return content;
+    } catch (fetchErr) {
+      debugLog('❌ fetch 异常类型: ' + fetchErr.constructor.name, 'err');
+      debugLog('❌ 错误消息: ' + fetchErr.message, 'err');
+      debugLog('❌ 错误名称: ' + fetchErr.name, 'err');
+
+      if (fetchErr.message.includes('Failed to fetch') || fetchErr.message.includes('NetworkError')) {
+        debugLog('⚠️ 可能原因: CORS 限制 / 网络不通 / SSL 错误', 'warn');
+        debugLog('⚠️ 请检查: 1)网络是否正常 2)API URL 是否正确 3)是否需要代理', 'warn');
+      }
+
+      throw new Error('fetch 失败: ' + fetchErr.message);
+    }
+  }
+
   async function uploadPDF(file) {
     const statusEl = els.pdfUploadStatus;
     const statusIcon = statusEl.querySelector('.pdf-status-icon');
@@ -298,9 +348,9 @@
 
     // 显示解析中状态
     statusEl.style.display = 'flex';
-    statusEl.className = 'pdf-upload-status loading';
-    statusIcon.textContent = '⏳';
-    statusText.textContent = `正在处理 ${file.name}...`;
+    statusEl.className = 'pdf-upload-status';
+    statusIcon.innerHTML = '<span class="loading"></span>';
+    statusText.textContent = '请等待...';
 
     debugLog(`📄 文件: ${file.name} (${(file.size/1024).toFixed(1)}KB)`, 'step');
 
@@ -328,9 +378,9 @@
         debugLog('前200字: ' + rawText.substring(0, 200), 'data');
       }
 
-      if (!rawText || rawText.trim().length < 10) {
-        debugLog('⚠️ 文本过短，可能是扫描件（图片PDF）', 'err');
-        throw new Error('PDF 中未提取到有效文本（仅 ' + textLen + ' 字符）。可能是扫描件/图片PDF，请使用文字版 PDF。');
+      const isScannedPDF = !rawText || rawText.trim().length < 10;
+      if (isScannedPDF) {
+        debugLog('⚠️ 文本过短，检测为扫描件/图片PDF，将使用 AI 视觉识别', 'warn');
       }
 
       // 第三步：检查 AI 配置
@@ -346,9 +396,63 @@
       debugLog(`✅ 模型: ${config.modelName}`, 'ok');
       debugLog(`   URL: ${config.baseUrl}`, 'data');
 
-      // 第四步：调用 AI（通过 service worker + 轮询）
+      // 第四步：调用 AI
       debugLog(`🤖 步骤4: 调用 AI (${config.modelName})...`, 'step');
-      const textForAI = rawText.substring(0, 6000);
+
+      let aiMessage;
+      if (isScannedPDF) {
+        // ===== 扫描件模式：渲染为图片 + AI 视觉识别 =====
+        debugLog('🖼️ 扫描件模式: 渲染 PDF 页面为图片...', 'step');
+        let pages;
+        try {
+          pages = await PDFExtractor.renderPagesAsImages(arrayBuffer);
+          debugLog(`✅ 渲染了 ${pages.length} 页`, 'ok');
+        } catch (renderErr) {
+          debugLog('❌ 渲染失败: ' + renderErr.message, 'err');
+          throw new Error('PDF 页面渲染失败: ' + renderErr.message);
+        }
+
+        // 构建图片消息
+        const imageContent = pages.map((page, idx) => ({
+          type: 'image_url',
+          image_url: { url: page.dataUrl },
+        }));
+
+        const ocrPrompt = `你是一个简历 OCR 助手。请仔细识别这张简历图片中的所有文字内容，提取出完整的简历文本。
+
+要求：
+1. 识别图片中所有可见文字，包括姓名、联系方式、教育经历、工作经历、技能等
+2. 保持原始排版结构，用换行分隔不同段落
+3. 不要遗漏任何信息
+4. 只返回识别到的纯文本，不要添加额外说明
+
+请返回识别到的完整简历文本：`;
+
+        const requestBody = {
+          model: config.modelName,
+          messages: [
+            { role: 'system', content: '你是一个专业的 OCR 文字识别助手，擅长从图片中提取文字。只返回识别到的文字内容。' },
+            { role: 'user', content: [...imageContent, { type: 'text', text: ocrPrompt }] },
+          ],
+          temperature: 0.3,
+          max_tokens: 4000,
+        };
+
+        debugLog(`发送 ${pages.length} 张图片给 AI 做 OCR...`, 'step');
+        aiMessage = await callAIAPI(config, requestBody);
+
+        if (!aiMessage || aiMessage.trim().length < 10) {
+          debugLog('❌ AI 视觉识别返回内容过短', 'err');
+          throw new Error('AI 未能从图片中识别出有效文字，请确认模型支持图片输入（如 GPT-4o、Claude 等视觉模型）');
+        }
+
+        // OCR 识别出的文本再交给 AI 做结构化解析
+        debugLog('📝 OCR 文本长度: ' + aiMessage.length + ' 字符，进行结构化解析...', 'step');
+        rawText = aiMessage;
+      }
+
+      // ===== 结构化解析（文字版和扫描件共用） =====
+      const textForAI = (rawText || '').substring(0, 6000);
       debugLog(`发送给 AI 的文本长度: ${textForAI.length} 字符`, 'data');
 
       const parsePrompt = `你是一个简历解析助手。请分析以下 PDF 提取的简历原始文本，将其整理为结构化的简历信息。
@@ -369,57 +473,17 @@
 简历原始文本：
 ${textForAI}`;
 
-      let aiMessage;
-      try {
-        // 直接从 popup fetch（有 host_permissions）
-        debugLog('popup 直接 fetch API...', 'step');
-        let apiUrl = config.baseUrl.trim();
-        if (!apiUrl.endsWith('/')) apiUrl += '/';
-        apiUrl += 'chat/completions';
-        debugLog('URL: ' + apiUrl, 'data');
-
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + config.apiKey,
-          },
-          body: JSON.stringify({
-            model: config.modelName,
-            messages: [
-              { role: 'system', content: '你是一个专业的简历解析助手，擅长从非结构化文本中提取结构化信息。只返回JSON，不要返回其他内容。' },
-              { role: 'user', content: parsePrompt },
-            ],
-            temperature: 0.3,
-            max_tokens: 2000,
-          }),
-        });
-
-        debugLog('HTTP 状态: ' + response.status + ' ' + response.statusText, response.ok ? 'ok' : 'err');
-
-        if (!response.ok) {
-          const errBody = await response.text();
-          debugLog('错误响应: ' + errBody.substring(0, 500), 'err');
-          throw new Error('API 返回 ' + response.status + ': ' + errBody.substring(0, 200));
-        }
-
-        const data = await response.json();
-        aiMessage = data.choices?.[0]?.message?.content?.trim();
-        debugLog('AI 返回长度: ' + (aiMessage?.length || 0) + ' 字符', aiMessage ? 'ok' : 'err');
-        debugLog('AI 原始返回(前500字): ' + (aiMessage || '').substring(0, 500), 'data');
-      } catch (fetchErr) {
-        // 详细记录错误信息
-        debugLog('❌ fetch 异常类型: ' + fetchErr.constructor.name, 'err');
-        debugLog('❌ 错误消息: ' + fetchErr.message, 'err');
-        debugLog('❌ 错误名称: ' + fetchErr.name, 'err');
-
-        if (fetchErr.message.includes('Failed to fetch') || fetchErr.message.includes('NetworkError')) {
-          debugLog('⚠️ 可能原因: CORS 限制 / 网络不通 / SSL 错误', 'warn');
-          debugLog('⚠️ 请检查: 1)网络是否正常 2)API URL 是否正确 3)是否需要代理', 'warn');
-        }
-
-        throw new Error('fetch 失败: ' + fetchErr.message);
-      }
+      // 发送文本给 AI 做结构化解析（文字版和扫描件共用）
+      const parseRequestBody = {
+        model: config.modelName,
+        messages: [
+          { role: 'system', content: '你是一个专业的简历解析助手，擅长从非结构化文本中提取结构化信息。只返回JSON，不要返回其他内容。' },
+          { role: 'user', content: parsePrompt },
+        ],
+        temperature: 0.3,
+        max_tokens: 2000,
+      };
+      aiMessage = await callAIAPI(config, parseRequestBody);
 
       if (!aiMessage) {
         debugLog('❌ AI 返回空内容', 'err');
@@ -455,11 +519,16 @@ ${textForAI}`;
       // 显示成功状态
       statusEl.className = 'pdf-upload-status success';
       statusIcon.textContent = '✅';
-      statusText.textContent = `✅ ${file.name} 解析成功，AI 已提取简历信息`;
+      if (isScannedPDF) {
+        statusText.textContent = `✅ ${file.name} 扫描件识别成功，AI 已提取简历信息`;
+        showSuccess('✅ 扫描件 PDF 已通过 AI 视觉识别 + 智能解析，信息已自动填入');
+      } else {
+        statusText.textContent = `✅ ${file.name} 解析成功，AI 已提取简历信息`;
+        showSuccess('✅ PDF 简历已通过 AI 智能解析，信息已自动填入');
+      }
       els.dividerOr.style.display = 'flex';
 
       debugLog('🎉 全部完成！信息已自动填入', 'ok');
-      showSuccess('✅ PDF 简历已通过 AI 智能解析，信息已自动填入');
 
     } catch (err) {
       debugLog('💥 错误: ' + err.message, 'err');
