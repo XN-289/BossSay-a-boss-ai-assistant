@@ -207,4 +207,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     return true;
   }
+
+  // ===== AI Chat Completions (proxied to avoid CORS) =====
+
+  if (request.type === 'AI_CHAT_COMPLETIONS') {
+    const { url, headers, body } = request.data;
+    fetch(url, { method: 'POST', headers, body: JSON.stringify(body) })
+      .then(resp => {
+        if (!resp.ok) return resp.text().then(t => { throw new Error('API ' + resp.status + ': ' + t.substring(0, 200)); });
+        return resp.json();
+      })
+      .then(data => {
+        const content = data.choices?.[0]?.message?.content?.trim();
+        if (!content) throw new Error('AI 返回空内容');
+        sendResponse({ success: true, content });
+      })
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
 });

@@ -256,23 +256,44 @@
         jobInfo.jd = manualJD;
       }
 
-      // 获取自定义 prompt
-      const customPrompt = await new Promise(resolve => {
-        chrome.storage.local.get('bossSay_customPrompt', data => resolve(data.bossSay_customPrompt || ''));
-      });
+      // Map bossSay_ prefixed keys to unprefixed keys for ai-client.js
+      const mappedProfile = {
+        resume: profile.bossSay_resume || '',
+        experience: profile.bossSay_experience || '',
+        skills: profile.bossSay_skills || '',
+        education: profile.bossSay_education || '',
+        availableDate: profile.bossSay_availableDate || '',
+        internshipDuration: profile.bossSay_internshipDuration || '',
+        jobType: profile.bossSay_jobType || '',
+        wantFulltime: profile.bossSay_wantFulltime || '',
+        github: profile.bossSay_github || '',
+        portfolio: profile.bossSay_portfolio || '',
+        selfIntro: profile.bossSay_selfIntro || '',
+      };
 
       // 直接调用 ai-client.js
       const message = await generateMessage({
         apiConfig,
-        profile,
+        profile: mappedProfile,
         jobInfo: jobInfo,
         style,
-        customPrompt,
+        customPrompt: '',
       });
 
       els.messageOutput.value = message;
       els.resultArea.style.display = 'block';
       showSuccess('✅ 消息生成成功');
+
+      // 保存历史记录
+      chrome.runtime.sendMessage({
+        type: 'SAVE_HISTORY_ITEM',
+        data: {
+          jobTitle: currentJobInfo.title,
+          company: currentJobInfo.company,
+          message: message,
+          timestamp: Date.now(),
+        },
+      }).catch(() => {});
     } catch (error) {
       showError('生成失败：' + error.message);
     } finally {

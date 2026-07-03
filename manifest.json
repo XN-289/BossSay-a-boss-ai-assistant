@@ -19,8 +19,7 @@
     "https://api.openai.com/*",
     "https://*.openai.com/*",
     "https://api.anthropic.com/*",
-    "https://*.anthropic.com/*",
-    "<all_urls>"
+    "https://*.anthropic.com/*"
   ],
   "action": {
     "default_popup": "popup/popup.html",
@@ -42,8 +41,8 @@
         "https://zhipin.com/job_detail/*",
         "https://www.zhipin.com/web/geek/job/*",
         "https://zhipin.com/web/geek/job/*",
-        "https://www.zhipin.com/*",
-        "https://zhipin.com/*"
+        "https://www.zhipin.com/geek/*",
+        "https://zhipin.com/geek/*"
       ],
       "js": ["content/content.js"],
       "css": ["content/content.css"],

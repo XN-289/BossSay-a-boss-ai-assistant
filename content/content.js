@@ -48,6 +48,7 @@
     var url = location.href;
     if (url.indexOf('/geek/jobs') >= 0) return 'search';
     if (url.indexOf('/job_detail/') >= 0) return 'detail';
+    if (url.indexOf('/web/geek/job') >= 0) return 'detail';
     if (url.indexOf('/chat') >= 0) return 'chat';
     return 'other';
   }
