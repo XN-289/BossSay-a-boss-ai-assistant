@@ -51,7 +51,11 @@
 
   async function fetchJobFromAPI() {
     const jobId = getJobIdFromURL();
-    if (!jobId) return null;
+    if (!jobId) {
+      console.log('[BossSay] 无法从URL提取Job ID');
+      return null;
+    }
+    console.log('[BossSay] Job ID:', jobId);
 
     const urls = [
       `/wapi/zpgeek/job/detail.json?jobId=${jobId}`,
@@ -61,21 +65,42 @@
 
     for (const url of urls) {
       try {
+        console.log('[BossSay] 尝试 API:', url);
         const resp = await fetch(url, {
-          credentials: 'include', // 带上 cookies（登录态）
+          credentials: 'include',
           headers: { 'Accept': 'application/json' },
         });
-        if (!resp.ok) continue;
+        console.log('[BossSay] API 响应:', resp.status, resp.statusText);
+
+        if (!resp.ok) {
+          console.log('[BossSay] API 非200，跳过');
+          continue;
+        }
 
         const data = await resp.json();
+        console.log('[BossSay] API 返回数据 keys:', Object.keys(data));
+        console.log('[BossSay] API 返回数据(前500字):', JSON.stringify(data).substring(0, 500));
+
         const job = data?.data || data?.zpData || data?.result || data;
-        if (!job || (!job.jobName && !job.title && !job.positionName)) continue;
+        if (!job) {
+          console.log('[BossSay] API 数据为空');
+          continue;
+        }
+        console.log('[BossSay] job keys:', Object.keys(job));
+        console.log('[BossSay] jobName:', job.jobName, 'title:', job.title);
+
+        if (!job.jobName && !job.title && !job.positionName) {
+          console.log('[BossSay] API 数据无职位名称，跳过');
+          continue;
+        }
 
         return parseJobData(job);
       } catch (e) {
+        console.log('[BossSay] API 异常:', e.message);
         continue;
       }
     }
+    console.log('[BossSay] 所有 API 尝试均失败');
     return null;
   }
 
