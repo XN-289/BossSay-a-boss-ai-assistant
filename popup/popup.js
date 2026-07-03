@@ -178,7 +178,10 @@
         els.jobInfoCard.style.display = 'block';
         els.btnGenerate.style.display = 'flex';
         els.resultArea.style.display = 'none';
-        showSuccess('✅ 岗位信息扫描成功');
+
+        // 调试信息：显示提取到的 JD 前200字
+        const jdPreview = currentJobInfo.jd ? currentJobInfo.jd.substring(0, 200) : '(空)';
+        showSuccess('✅ 扫描成功 | JD前200字: ' + jdPreview);
       } else {
         showError('未能从当前页面提取岗位信息');
       }
