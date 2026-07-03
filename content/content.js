@@ -1,12 +1,15 @@
 /**
- * BossSay - Content Script v6
- * 简化版：同步返回 + API 降级
+ * BossSay - Content Script v7
+ * 安全版：不调任何 Boss直聘 API，只从页面内嵌数据提取
+ *
+ * 方案：
+ * 1. 从页面 script 标签中查找内嵌的 JSON 数据（SSR/Next.js/Nuxt 数据）
+ * 2. 从 URL 提取 Job ID
+ * 3. 从 DOM 提取元信息（过滤 CSS 混淆）
  */
 
 (function () {
   'use strict';
-
-  console.log('[BossSay] v6 加载, URL:', window.location.href);
 
   // ==================== 工具函数 ====================
 
@@ -23,6 +26,10 @@
     return hash.toString(36);
   }
 
+  function safeResponse(sendResponse, data) {
+    try { sendResponse(data); } catch (e) {}
+  }
+
   // ==================== 从 URL 提取 Job ID ====================
 
   function getJobIdFromURL() {
@@ -36,15 +43,115 @@
     return '';
   }
 
-  // ==================== 从 DOM 提取元信息 ====================
+  // ==================== 从页面 script 标签提取 SSR 数据 ====================
+
+  function extractFromScripts() {
+    const scripts = document.querySelectorAll('script:not([src])');
+    for (const script of scripts) {
+      const text = script.textContent || '';
+      if (text.length < 50) continue;
+
+      // 匹含岗位相关关键词的 script
+      if (!text.includes('jobName') && !text.includes('postDescription') &&
+          !text.includes('jobDesc') && !text.includes('positionName')) {
+        continue;
+      }
+
+      // 尝试提取 JSON 对象
+      const strategies = [
+        // window.__INITIAL_STATE__ = {...}
+        () => {
+          const m = text.match(/window\.__INITIAL_STATE__\s*=\s*(\{[\s\S]*?\});?\s*(?:<\/script>|$)/);
+          return m ? JSON.parse(m[1]) : null;
+        },
+        // window.__NEXT_DATA__ = {...}
+        () => {
+          const m = text.match(/window\.__NEXT_DATA__\s*=\s*(\{[\s\S]*?\});?\s*(?:<\/script>|$)/);
+          return m ? JSON.parse(m[1]) : null;
+        },
+        // 直接找包含 jobName 的 JSON
+        () => {
+          const m = text.match(/(\{[\s\S]*"jobName"[\s\S]*\})/);
+          return m ? JSON.parse(m[1]) : null;
+        },
+        // 找包含 postDescription 的 JSON
+        () => {
+          const m = text.match(/(\{[\s\S]*"postDescription"[\s\S]*\})/);
+          return m ? JSON.parse(m[1]) : null;
+        },
+        // 变量赋值: var/let/const xxx = {...}
+        () => {
+          const m = text.match(/(?:var|let|const)\s+\w+\s*=\s*(\{[\s\S]*\})\s*;?/);
+          return m ? JSON.parse(m[1]) : null;
+        },
+      ];
+
+      for (const tryParse of strategies) {
+        try {
+          const data = tryParse();
+          if (data) {
+            const job = findJobInObject(data);
+            if (job && (job.jobName || job.title || job.positionName)) {
+              return parseJobData(job);
+            }
+          }
+        } catch (e) {}
+      }
+    }
+    return null;
+  }
+
+  // 递归查找嵌套对象中的岗位数据
+  function findJobInObject(obj, depth) {
+    depth = depth || 0;
+    if (depth > 6 || !obj || typeof obj !== 'object') return null;
+
+    if (obj.jobName || obj.postDescription || (obj.title && (obj.salary || obj.salaryDesc))) {
+      return obj;
+    }
+
+    const keys = Object.keys(obj);
+    for (let i = 0; i < keys.length; i++) {
+      const val = obj[keys[i]];
+      if (val && typeof val === 'object') {
+        const result = findJobInObject(val, depth + 1);
+        if (result) return result;
+      }
+    }
+    return null;
+  }
+
+  function parseJobData(job) {
+    return {
+      id: job.encryptJobId || job.jobId || job.id || hashStr(window.location.href),
+      title: cleanText(job.jobName || job.title || job.positionName || ''),
+      salary: cleanText(job.salary || job.salaryDesc || job.payDesc || ''),
+      location: cleanText([job.cityName || job.city, job.areaDistrict || job.district].filter(Boolean).join(' ')),
+      company: cleanText(job.brandName || job.companyName || job.company || ''),
+      bossName: cleanText(job.bossName || job.hrName || ''),
+      bossTitle: cleanText(job.bossTitle || job.hrTitle || ''),
+      jd: cleanText(job.postDescription || job.jobDesc || job.description || job.content || ''),
+      requirements: Array.isArray(job.skills) ? job.skills.map(function(s) { return typeof s === 'string' ? s : s.name || ''; }).filter(Boolean) : [],
+      companyInfo: cleanText([job.brandScaleName || job.companySize, job.brandIndustry || job.industry].filter(Boolean).join(' · ')),
+      url: window.location.href,
+      jdHash: hashStr(job.postDescription || job.jobDesc || ''),
+      source: 'ssr',
+    };
+  }
+
+  // ==================== DOM 提取（降级，过滤 CSS） ====================
+
+  function isCSS(text) {
+    if (!text) return true;
+    return text.includes('display:') || text.includes('font-size:') || text.includes('{') && text.includes('}');
+  }
 
   function extractField(selectors) {
-    for (const sel of selectors) {
-      const el = document.querySelector(sel);
+    for (var i = 0; i < selectors.length; i++) {
+      var el = document.querySelector(selectors[i]);
       if (el) {
-        const text = el.textContent?.trim();
-        // 过滤掉 CSS 内容
-        if (text && text.length > 0 && text.length < 500 && !text.includes('{') && !text.includes('display:')) {
+        var text = el.textContent?.trim();
+        if (text && text.length > 0 && text.length < 500 && !isCSS(text)) {
           return text;
         }
       }
@@ -52,57 +159,33 @@
     return '';
   }
 
-  function extractMeta() {
-    return {
-      title: extractField(['.job-name', '[class*="job-name"]', 'h1']),
-      salary: extractField(['.salary', '[class*="salary"]']),
-      location: extractField(['.job-area', '[class*="job-area"]']),
-      company: extractField(['.company-name', '[class*="company-name"]']),
-      bossName: extractField(['.info-primary .name', '[class*="boss"] .name']),
-    };
-  }
+  function extractFromDOM() {
+    // 提取元信息
+    var title = extractField(['.job-name', '[class*="job-name"]', 'h1']);
+    var salary = extractField(['.salary', '[class*="salary"]']);
+    var location = extractField(['.job-area', '[class*="job-area"]']);
+    var company = extractField(['.company-name', '[class*="company-name"]']);
 
-  // ==================== 主提取逻辑 ====================
-
-  function doExtract() {
-    const jobId = getJobIdFromURL();
-    const meta = extractMeta();
-    const debug = [];
-
-    debug.push('v6');
-    debug.push('JobID:' + (jobId || '无'));
-    debug.push('title:' + (meta.title || '无'));
-    debug.push('company:' + (meta.company || '无'));
-
-    // 检查页面是否有真实内容（非CSS）
-    const bodyText = document.body?.textContent || '';
-    const hasCSS = bodyText.includes('display:inline-block') || bodyText.includes('font-size:0');
-    debug.push('页面有CSS:' + hasCSS);
-
-    // 尝试找到 JD 内容（过滤掉 CSS）
-    let jd = '';
-    const allDivs = document.querySelectorAll('div, section');
-    for (const div of allDivs) {
-      const text = div.textContent?.trim() || '';
-      // 跳过包含 CSS 的内容
-      if (text.includes('display:') || text.includes('{') || text.includes('}')) continue;
-      // 找包含 JD 关键词的段落
-      if (text.length > 50 && text.length < 3000) {
+    // 提取 JD：遍历所有 div，找包含 JD 关键词且非 CSS 的内容
+    var jd = '';
+    var divs = document.querySelectorAll('div, section, p');
+    for (var i = 0; i < divs.length; i++) {
+      var text = divs[i].textContent?.trim() || '';
+      if (text.length > 50 && text.length < 3000 && !isCSS(text)) {
         if (/岗位职责|工作内容|任职要求|岗位要求|职位描述|工作职责/.test(text)) {
           jd = text;
           break;
         }
       }
     }
-    debug.push('JD:' + (jd.length > 0 ? jd.length + '字' : '无'));
 
-    const jobInfo = {
-      id: jobId || hashStr(window.location.href),
-      title: cleanText(meta.title),
-      salary: cleanText(meta.salary),
-      location: cleanText(meta.location),
-      company: cleanText(meta.company),
-      bossName: cleanText(meta.bossName),
+    return {
+      id: hashStr(window.location.href),
+      title: cleanText(title),
+      salary: cleanText(salary),
+      location: cleanText(location),
+      company: cleanText(company),
+      bossName: '',
       bossTitle: '',
       jd: cleanText(jd),
       requirements: [],
@@ -110,74 +193,15 @@
       url: window.location.href,
       jdHash: hashStr(jd),
       source: jd ? 'dom' : 'none',
-      debug: debug.join(' | '),
     };
-
-    console.log('[BossSay] 提取结果:', jobInfo);
-    return jobInfo;
-  }
-
-  // ==================== 异步 API 调用（补充数据） ====================
-
-  async function enrichWithAPI(jobInfo) {
-    const jobId = getJobIdFromURL();
-    if (!jobId) {
-      jobInfo.debug += ' | 无JobID';
-      return jobInfo;
-    }
-
-    const urls = [
-      `/wapi/zpgeek/job/detail.json?jobId=${jobId}`,
-      `/wapi/zpgeek/job/detail.json?lid=${jobId}`,
-      `/wapi/zpgeek/job/detail.json?encryptJobId=${jobId}`,
-      `/wapi/zpgeek/job/internship/detail.json?jobId=${jobId}`,
-    ];
-
-    for (const url of urls) {
-      try {
-        const resp = await fetch(url, { credentials: 'include' });
-        jobInfo.debug += ' | ' + url.split('?')[0] + ':' + resp.status;
-
-        if (!resp.ok) continue;
-
-        const data = await resp.json();
-        const code = data.code || data.statusCode;
-        const job = data?.data || data?.zpData || data;
-
-        jobInfo.debug += '|code:' + code;
-
-        if (!job) continue;
-
-        // 检查是否有有效数据
-        const hasJD = job.postDescription || job.jobDesc || job.description;
-        const hasTitle = job.jobName || job.title || job.positionName;
-
-        if (hasTitle) {
-          jobInfo.title = cleanText(job.jobName || job.title || jobInfo.title);
-          jobInfo.salary = cleanText(job.salary || job.salaryDesc || jobInfo.salary);
-          jobInfo.company = cleanText(job.brandName || job.companyName || jobInfo.company);
-          jobInfo.location = cleanText([job.cityName, job.areaDistrict].filter(Boolean).join(' ') || jobInfo.location);
-          jobInfo.bossName = cleanText(job.bossName || jobInfo.bossName);
-          if (hasJD) {
-            jobInfo.jd = cleanText(hasJD);
-          }
-          jobInfo.source = 'api';
-          jobInfo.debug += '|OK';
-          return jobInfo;
-        }
-      } catch (e) {
-        jobInfo.debug += '|err:' + e.message.substring(0, 30);
-        continue;
-      }
-    }
-    jobInfo.debug += '|全部失败';
-    return jobInfo;
   }
 
   // ==================== 输入框注入 ====================
 
-  async function injectMessageToInput(message, retries = 10, interval = 500) {
-    const inputSelectors = [
+  async function injectMessageToInput(message, retries, interval) {
+    retries = retries || 10;
+    interval = interval || 500;
+    var inputSelectors = [
       '.edit-area .input-area',
       '.chat-conversation .input-area textarea',
       '.chat-conversation .input-area [contenteditable]',
@@ -191,12 +215,12 @@
       '[contenteditable="true"]',
     ];
 
-    for (let attempt = 0; attempt < retries; attempt++) {
-      for (const sel of inputSelectors) {
-        const input = document.querySelector(sel);
+    for (var attempt = 0; attempt < retries; attempt++) {
+      for (var s = 0; s < inputSelectors.length; s++) {
+        var input = document.querySelector(inputSelectors[s]);
         if (input) {
           if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') {
-            const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+            var setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
             if (setter) setter.call(input, message);
             else input.value = message;
             input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -209,7 +233,7 @@
           return true;
         }
       }
-      await new Promise(r => setTimeout(r, interval));
+      await new Promise(function(r) { setTimeout(r, interval); });
     }
     return false;
   }
@@ -218,65 +242,75 @@
 
   function injectBossSayButton() {
     if (document.getElementById('boss-say-open-btn')) return;
-    const btn = document.createElement('button');
+    var btn = document.createElement('button');
     btn.id = 'boss-say-open-btn';
     btn.textContent = 'BossSay';
     btn.title = '打开 BossSay';
     btn.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:999999;padding:10px 18px;background:linear-gradient(135deg,#4FACFE,#00F2FE);color:#fff;border:none;border-radius:24px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 4px 15px rgba(79,172,254,0.4);font-family:sans-serif;';
-    btn.addEventListener('click', () => {
-      chrome.runtime.sendMessage({ type: 'OPEN_POPUP' }).catch(() => {});
+    btn.addEventListener('click', function() {
+      chrome.runtime.sendMessage({ type: 'OPEN_POPUP' }).catch(function() {});
     });
     document.body.appendChild(btn);
   }
 
   // ==================== 监听消息 ====================
 
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    console.log('[BossSay] 收到消息:', request.type);
+  var cachedJobInfo = null;
 
+  chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     if (request.type === 'EXTRACT_JOB_INFO') {
-      // 如果有缓存且URL没变，直接返回
+      // 有缓存直接返回
       if (cachedJobInfo && cachedJobInfo.url === window.location.href && cachedJobInfo.title) {
-        sendResponse({ success: true, jobInfo: cachedJobInfo });
+        safeResponse(sendResponse, { success: true, jobInfo: cachedJobInfo });
         return false;
       }
 
-      // 同步提取DOM信息
-      const jobInfo = doExtract();
+      var debug = [];
+      var jobId = getJobIdFromURL();
+      debug.push('JobID:' + (jobId || '无'));
 
-      // 异步调API补充JD，用sendResponse返回
-      enrichWithAPI(jobInfo).then(updated => {
-        cachedJobInfo = updated;
-        try { sendResponse({ success: true, jobInfo: updated }); } catch(e) {}
-      });
+      // 方案1：从页面 script 标签提取 SSR 数据
+      var jobInfo = extractFromScripts();
+      if (jobInfo && jobInfo.title) {
+        debug.push('SSR成功:' + jobInfo.title);
+        debug.push('JD:' + (jobInfo.jd ? jobInfo.jd.length + '字' : '无'));
+        jobInfo.debug = debug.join(' | ');
+        cachedJobInfo = jobInfo;
+        safeResponse(sendResponse, { success: true, jobInfo: jobInfo });
+        return false;
+      }
+      debug.push('SSR:无数据');
 
-      return true; // async response
+      // 方案2：DOM 提取（降级）
+      jobInfo = extractFromDOM();
+      debug.push('title:' + (jobInfo.title || '无'));
+      debug.push('company:' + (jobInfo.company || '无'));
+      debug.push('JD:' + (jobInfo.jd ? jobInfo.jd.length + '字' : '无'));
+      jobInfo.debug = debug.join(' | ');
+      cachedJobInfo = jobInfo;
+      safeResponse(sendResponse, { success: true, jobInfo: jobInfo });
+      return false;
     }
 
     if (request.type === 'FILL_MESSAGE') {
-      const message = request.data?.message;
+      var message = request.data?.message;
       if (message) {
-        injectMessageToInput(message).then(filled => {
-          sendResponse({ success: filled });
+        injectMessageToInput(message).then(function(filled) {
+          safeResponse(sendResponse, { success: filled });
         });
         return true;
       }
-      sendResponse({ success: false, error: '消息内容为空' });
+      safeResponse(sendResponse, { success: false, error: '消息内容为空' });
       return false;
     }
 
     return false;
   });
 
-  // ==================== 缓存 ====================
-
-  let cachedJobInfo = null;
-
   // ==================== 初始化 ====================
 
   function init() {
     injectBossSayButton();
-    console.log('[BossSay] 初始化完成, JobID:', getJobIdFromURL());
   }
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
@@ -285,8 +319,8 @@
     window.addEventListener('load', init);
   }
 
-  let lastUrl = location.href;
-  new MutationObserver(() => {
+  var lastUrl = location.href;
+  new MutationObserver(function() {
     if (location.href !== lastUrl) {
       lastUrl = location.href;
       cachedJobInfo = null;
