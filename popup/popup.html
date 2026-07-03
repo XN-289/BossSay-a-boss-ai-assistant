@@ -25,13 +25,18 @@
     <!-- ==================== 生成消息页面 ==================== -->
     <div class="tab-content active" id="tab-generate">
       <div class="page-guide" id="page-guide">
-        <p>📌 请先打开 Boss 直聘的<strong>岗位详情页</strong></p>
-        <p style="font-size:12px;color:#999;margin-top:4px">页面上会出现「🎯 AI 一键打招呼」按钮</p>
+        <p>📌 请先打开 Boss 直聘的<strong>搜索页</strong>或<strong>岗位详情页</strong></p>
+        <p style="font-size:12px;color:#999;margin-top:4px">搜索页可批量扫描，详情页可单独扫描</p>
       </div>
 
       <div class="job-info-card" id="job-info-card" style="display:none">
         <div class="job-title" id="job-title"></div>
         <div class="job-meta" id="job-meta"></div>
+      </div>
+
+      <div class="form-group" id="jd-paste-section" style="display:none">
+        <label>岗位描述（可选，手动粘贴）</label>
+        <textarea id="jd-input" rows="3" placeholder="从岗位详情页复制 JD 粘贴到这里，AI 会结合 JD 生成更精准的消息..."></textarea>
       </div>
 
       <div class="form-group">

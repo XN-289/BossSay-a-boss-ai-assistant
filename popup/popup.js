@@ -19,6 +19,8 @@
     jobInfoCard: $('job-info-card'),
     jobTitle: $('job-title'),
     jobMeta: $('job-meta'),
+    jdInput: $('jd-input'),
+    jdPasteSection: $('jd-paste-section'),
     styleSelect: $('style-select'),
     btnExtract: $('btn-extract'),
     btnGenerate: $('btn-generate'),
@@ -171,35 +173,43 @@
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       const resp = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_JOB_INFO' });
 
-      if (resp?.success && resp.jobInfo) {
-        currentJobInfo = resp.jobInfo;
+      if (!resp?.success) {
+        showError(resp?.error || '未能从当前页面提取岗位信息');
+        return;
+      }
 
-        // 尝试从剪贴板读取 JD（用户已手动复制）
-        if (!currentJobInfo.jd || currentJobInfo.jd.length < 20) {
-          try {
-            const clipText = await navigator.clipboard.readText();
-            if (clipText && clipText.length > 30 && /[一-鿿]/.test(clipText)) {
-              currentJobInfo.jd = clipText;
-              currentJobInfo.source = 'clipboard';
-            }
-          } catch (e) {}
+      if (resp.pageType === 'search') {
+        // 搜索页：显示第一个匹配的岗位
+        const jobs = resp.jobs || [];
+        if (jobs.length === 0) {
+          showError('未找到符合条件的岗位');
+          return;
         }
-
+        currentJobInfo = jobs[0];
+        els.jobTitle.textContent = currentJobInfo.title;
+        els.jobMeta.textContent = [currentJobInfo.company, currentJobInfo.salary, currentJobInfo.location, currentJobInfo.experience, currentJobInfo.education].filter(Boolean).join(' · ');
+        els.jobInfoCard.style.display = 'block';
+        els.jdPasteSection.style.display = 'block';
+        els.jdInput.value = '';
+        els.btnGenerate.style.display = 'flex';
+        els.resultArea.style.display = 'none';
+        showSuccess('✅ 搜索页扫描成功 | ' + jobs.length + ' 个岗位');
+      } else if (resp.pageType === 'detail') {
+        currentJobInfo = resp.jobInfo;
         els.jobTitle.textContent = currentJobInfo.title || '未识别到职位名称';
         els.jobMeta.textContent = [currentJobInfo.company, currentJobInfo.salary, currentJobInfo.location].filter(Boolean).join(' · ');
         els.jobInfoCard.style.display = 'block';
+        els.jdPasteSection.style.display = 'block';
+        els.jdInput.value = '';
         els.btnGenerate.style.display = 'flex';
         els.resultArea.style.display = 'none';
 
-        // 状态提示
         const jdLen = currentJobInfo.jd ? currentJobInfo.jd.length : 0;
         if (jdLen > 20) {
-          showSuccess('✅ 扫描成功 | JD:' + jdLen + '字');
+          showSuccess('✅ 详情页扫描成功 | JD:' + jdLen + '字');
         } else {
-          showError('请先在页面上选中 JD 文字 → Ctrl+C 复制 → 再点扫描');
+          showSuccess('✅ 已提取基本信息，可手动粘贴 JD 增强效果');
         }
-      } else {
-        showError('未能从当前页面提取岗位信息');
       }
     } catch (error) {
       showError('扫描失败：' + error.message + '。请刷新页面后重试。');
@@ -239,6 +249,13 @@
       const profileResp = await chrome.runtime.sendMessage({ type: 'GET_PROFILE' });
       const profile = profileResp?.profile || {};
 
+      // 合并手动粘贴的 JD
+      const jobInfo = { ...currentJobInfo };
+      const manualJD = els.jdInput?.value?.trim();
+      if (manualJD && manualJD.length > 20) {
+        jobInfo.jd = manualJD;
+      }
+
       // 获取自定义 prompt
       const customPrompt = await new Promise(resolve => {
         chrome.storage.local.get('bossSay_customPrompt', data => resolve(data.bossSay_customPrompt || ''));
@@ -248,7 +265,7 @@
       const message = await generateMessage({
         apiConfig,
         profile,
-        jobInfo: currentJobInfo,
+        jobInfo: jobInfo,
         style,
         customPrompt,
       });
