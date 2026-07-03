@@ -121,39 +121,56 @@
 
   async function enrichWithAPI(jobInfo) {
     const jobId = getJobIdFromURL();
-    if (!jobId) return jobInfo;
+    if (!jobId) {
+      jobInfo.debug += ' | 无JobID';
+      return jobInfo;
+    }
 
     const urls = [
       `/wapi/zpgeek/job/detail.json?jobId=${jobId}`,
       `/wapi/zpgeek/job/detail.json?lid=${jobId}`,
+      `/wapi/zpgeek/job/detail.json?encryptJobId=${jobId}`,
+      `/wapi/zpgeek/job/internship/detail.json?jobId=${jobId}`,
     ];
 
     for (const url of urls) {
       try {
         const resp = await fetch(url, { credentials: 'include' });
+        jobInfo.debug += ' | ' + url.split('?')[0] + ':' + resp.status;
+
         if (!resp.ok) continue;
+
         const data = await resp.json();
+        const code = data.code || data.statusCode;
         const job = data?.data || data?.zpData || data;
+
+        jobInfo.debug += '|code:' + code;
+
         if (!job) continue;
 
-        // 合并 API 数据（API 数据优先）
-        if (job.jobName || job.title) {
+        // 检查是否有有效数据
+        const hasJD = job.postDescription || job.jobDesc || job.description;
+        const hasTitle = job.jobName || job.title || job.positionName;
+
+        if (hasTitle) {
           jobInfo.title = cleanText(job.jobName || job.title || jobInfo.title);
           jobInfo.salary = cleanText(job.salary || job.salaryDesc || jobInfo.salary);
           jobInfo.company = cleanText(job.brandName || job.companyName || jobInfo.company);
           jobInfo.location = cleanText([job.cityName, job.areaDistrict].filter(Boolean).join(' ') || jobInfo.location);
           jobInfo.bossName = cleanText(job.bossName || jobInfo.bossName);
-          jobInfo.jd = cleanText(job.postDescription || job.jobDesc || job.description || jobInfo.jd);
+          if (hasJD) {
+            jobInfo.jd = cleanText(hasJD);
+          }
           jobInfo.source = 'api';
-          jobInfo.debug += ' | API已补充';
-          console.log('[BossSay] API 补充成功:', jobInfo.title);
+          jobInfo.debug += '|OK';
           return jobInfo;
         }
       } catch (e) {
+        jobInfo.debug += '|err:' + e.message.substring(0, 30);
         continue;
       }
     }
-    jobInfo.debug += ' | API无结果';
+    jobInfo.debug += '|全部失败';
     return jobInfo;
   }
 
@@ -218,17 +235,22 @@
     console.log('[BossSay] 收到消息:', request.type);
 
     if (request.type === 'EXTRACT_JOB_INFO') {
-      // 同步提取
+      // 如果有缓存且URL没变，直接返回
+      if (cachedJobInfo && cachedJobInfo.url === window.location.href && cachedJobInfo.title) {
+        sendResponse({ success: true, jobInfo: cachedJobInfo });
+        return false;
+      }
+
+      // 同步提取DOM信息
       const jobInfo = doExtract();
 
-      // 异步补充 API 数据，完成后更新缓存
+      // 异步调API补充JD，用sendResponse返回
       enrichWithAPI(jobInfo).then(updated => {
         cachedJobInfo = updated;
+        try { sendResponse({ success: true, jobInfo: updated }); } catch(e) {}
       });
 
-      // 先返回同步结果
-      sendResponse({ success: true, jobInfo });
-      return false;
+      return true; // async response
     }
 
     if (request.type === 'FILL_MESSAGE') {
