@@ -44,7 +44,7 @@
         "https://www.zhipin.com/*",
         "https://zhipin.com/*"
       ],
-      "js": ["content/content.js", "content/api-caller.js"],
+      "js": ["content/content.js"],
       "css": ["content/content.css"],
       "run_at": "document_idle"
     }

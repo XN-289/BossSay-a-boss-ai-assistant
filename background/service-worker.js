@@ -35,46 +35,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
-  // ===== API 测试 =====
-
-  if (request.type === 'TEST_API') {
-    const config = request.data;
-    if (!config?.apiKey || !config?.baseUrl || !config?.modelName) {
-      sendResponse({ success: false, error: '请先填写完整的 API 配置' });
-      return false;
-    }
-
-    let url = config.baseUrl.trim();
-    if (!url.endsWith('/')) url += '/';
-    url += 'chat/completions';
-
-    fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + config.apiKey,
-      },
-      body: JSON.stringify({
-        model: config.modelName,
-        messages: [{ role: 'user', content: 'Hi' }],
-        max_tokens: 10,
-      }),
-    })
-    .then(resp => resp.json())
-    .then(data => {
-      if (data.error) {
-        sendResponse({ success: false, error: data.error.message || JSON.stringify(data.error) });
-      } else {
-        const reply = data.choices?.[0]?.message?.content?.trim() || '(无回复)';
-        sendResponse({ success: true, reply });
-      }
-    })
-    .catch(err => {
-      sendResponse({ success: false, error: '网络请求失败: ' + err.message });
-    });
-    return true;
-  }
-
   // ===== 风格配置 =====
 
   if (request.type === 'GET_STYLE_PROMPTS') {

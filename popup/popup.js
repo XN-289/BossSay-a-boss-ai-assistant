@@ -101,21 +101,19 @@
 
   async function loadProfile() {
     try {
-      const resp = await chrome.runtime.sendMessage({ type: 'GET_PROFILE' });
-      if (resp?.success) {
-        const p = resp.profile;
-        els.inputResume.value = p.bossSay_resume || '';
-        els.inputExperience.value = p.bossSay_experience || '';
-        els.inputSkills.value = p.bossSay_skills || '';
-        els.inputEducation.value = p.bossSay_education || '';
-        els.inputAvailableDate.value = p.bossSay_availableDate || '';
-        els.inputInternshipDuration.value = p.bossSay_internshipDuration || '';
-        els.inputJobType.value = p.bossSay_jobType || '';
-        els.inputWantFulltime.value = p.bossSay_wantFulltime || '';
-        els.inputGithub.value = p.bossSay_github || '';
-        els.inputPortfolio.value = p.bossSay_portfolio || '';
-        els.inputSelfIntro.value = p.bossSay_selfIntro || '';
-      }
+      const data = await chrome.storage.local.get('bossSay_profile');
+      const p = data.bossSay_profile || {};
+      els.inputResume.value = p.bossSay_resume || '';
+      els.inputExperience.value = p.bossSay_experience || '';
+      els.inputSkills.value = p.bossSay_skills || '';
+      els.inputEducation.value = p.bossSay_education || '';
+      els.inputAvailableDate.value = p.bossSay_availableDate || '';
+      els.inputInternshipDuration.value = p.bossSay_internshipDuration || '';
+      els.inputJobType.value = p.bossSay_jobType || '';
+      els.inputWantFulltime.value = p.bossSay_wantFulltime || '';
+      els.inputGithub.value = p.bossSay_github || '';
+      els.inputPortfolio.value = p.bossSay_portfolio || '';
+      els.inputSelfIntro.value = p.bossSay_selfIntro || '';
     } catch (e) {
       console.error('加载资料失败:', e);
     }
@@ -123,13 +121,11 @@
 
   async function loadSettings() {
     try {
-      const resp = await chrome.runtime.sendMessage({ type: 'GET_API_CONFIG' });
-      if (resp?.success) {
-        const c = resp.config;
-        els.inputApiUrl.value = c.baseUrl || '';
-        els.inputApiKey.value = c.apiKey || '';
-        els.inputModel.value = c.modelName || '';
-      }
+      const data = await chrome.storage.local.get('bossSay_apiConfig');
+      const c = data.bossSay_apiConfig || {};
+      els.inputApiUrl.value = c.baseUrl || '';
+      els.inputApiKey.value = c.apiKey || '';
+      els.inputModel.value = c.modelName || '';
     } catch (e) {
       console.error('加载设置失败:', e);
     }
@@ -612,11 +608,9 @@ ${textForAI}`;
     }
 
     try {
-      const resp = await chrome.runtime.sendMessage({ type: 'SAVE_PROFILE', data: profile });
-      if (resp?.success) {
-        els.profileSuccess.style.display = 'block';
-        setTimeout(() => els.profileSuccess.style.display = 'none', 3000);
-      }
+      await chrome.storage.local.set({ bossSay_profile: profile });
+      els.profileSuccess.style.display = 'block';
+      setTimeout(() => els.profileSuccess.style.display = 'none', 3000);
     } catch (e) {
       showError('保存失败：' + e.message);
     }
@@ -638,11 +632,9 @@ ${textForAI}`;
     if (!config.baseUrl.endsWith('/')) config.baseUrl += '/';
 
     try {
-      const resp = await chrome.runtime.sendMessage({ type: 'SAVE_API_CONFIG', data: config });
-      if (resp?.success) {
-        els.settingsSuccess.style.display = 'block';
-        setTimeout(() => els.settingsSuccess.style.display = 'none', 3000);
-      }
+      await chrome.storage.local.set({ bossSay_apiConfig: config });
+      els.settingsSuccess.style.display = 'block';
+      setTimeout(() => els.settingsSuccess.style.display = 'none', 3000);
     } catch (e) {
       showError('保存失败：' + e.message);
     }
@@ -661,20 +653,29 @@ ${textForAI}`;
         apiKey: els.inputApiKey.value.trim(),
         modelName: els.inputModel.value.trim(),
       };
-      const resp = await chrome.runtime.sendMessage({ type: 'TEST_API', data: config });
-      if (resp?.success) {
-        els.settingsSuccess.textContent = '✅ 连接成功！模型响应: "' + resp.reply + '"';
-        els.settingsSuccess.style.display = 'block';
-        setTimeout(() => {
-          els.settingsSuccess.style.display = 'none';
-          els.settingsSuccess.textContent = '✅ 设置已保存';
-        }, 5000);
-      } else {
-        els.settingsError.textContent = '❌ ' + (resp.error || '连接失败');
-        els.settingsError.style.display = 'block';
+      if (!config.apiKey || !config.baseUrl || !config.modelName) {
+        throw new Error('请先填写完整的 API 配置');
       }
+      let url = config.baseUrl;
+      if (!url.endsWith('/')) url += '/';
+      url += 'chat/completions';
+
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + config.apiKey },
+        body: JSON.stringify({ model: config.modelName, messages: [{ role: 'user', content: 'Hi' }], max_tokens: 10 }),
+      });
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+      const reply = data.choices?.[0]?.message?.content?.trim() || '(无回复)';
+      els.settingsSuccess.textContent = '✅ 连接成功！模型响应: "' + reply + '"';
+      els.settingsSuccess.style.display = 'block';
+      setTimeout(() => {
+        els.settingsSuccess.style.display = 'none';
+        els.settingsSuccess.textContent = '✅ 设置已保存';
+      }, 5000);
     } catch (error) {
-      els.settingsError.textContent = '❌ 请求失败: ' + error.message;
+      els.settingsError.textContent = '❌ ' + error.message;
       els.settingsError.style.display = 'block';
     } finally {
       els.btnTestApi.disabled = false;
