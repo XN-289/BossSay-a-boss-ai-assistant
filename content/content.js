@@ -35,43 +35,42 @@
     try { sendResponse(data); } catch (e) {}
   }
 
-  // ==================== 三级降级 JD 提取 ====================
+  // ==================== JD 提取（通用策略，不依赖固定 class） ====================
 
-  function extractByXPath(xpath) {
-    try {
-      const result = document.evaluate(xpath, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
-      for (let i = 0; i < result.snapshotLength; i++) {
-        const node = result.snapshotItem(i);
-        const text = node.textContent?.trim();
-        if (text && text.length > 50) return text;
-      }
-    } catch (e) {}
-    return '';
-  }
-
-  function extractByCSS(selectors) {
-    for (const sel of selectors) {
-      const el = document.querySelector(sel);
-      if (el) {
-        const text = el.textContent?.trim();
-        if (text && text.length > 50) return text;
-      }
-    }
-    return '';
-  }
-
+  /**
+   * 策略1：通过关键词定位 JD 容器
+   * 找到包含"职位描述/岗位职责/工作内容/任职要求"等标题的元素，
+   * 然后收集其后续兄弟或父容器的文本
+   */
   function extractByKeyword() {
-    const keywords = ['职位描述', '岗位职责', '工作内容', '岗位要求', '任职要求', '职责描述', '工作职责', '职位要求'];
-    const allElements = document.querySelectorAll('h3, h4, .title, .label, [class*="title"], [class*="label"]');
+    const keywords = ['职位描述', '岗位职责', '工作内容', '岗位要求', '任职要求', '职责描述', '工作职责', '职位要求', '岗位信息'];
+    const allElements = document.querySelectorAll('*');
 
     for (const el of allElements) {
-      const text = safeGetText(el);
-      if (keywords.some(kw => text.includes(kw))) {
+      // 跳过太深嵌套的元素和非内容元素
+      if (['SCRIPT', 'STYLE', 'SVG', 'PATH'].includes(el.tagName)) continue;
+      if (el.children.length > 20) continue;
+
+      const directText = Array.from(el.childNodes)
+        .filter(n => n.nodeType === Node.TEXT_NODE)
+        .map(n => n.textContent.trim())
+        .join('');
+
+      if (directText && keywords.some(kw => directText.includes(kw))) {
+        // 找到标题元素，收集父容器的完整文本
+        const parent = el.parentElement;
+        if (parent) {
+          const fullText = parent.textContent?.trim();
+          if (fullText && fullText.length > 50) {
+            return fullText;
+          }
+        }
+        // 降级：收集后续兄弟
         const contents = [];
         let sibling = el.nextElementSibling;
-        while (sibling && contents.length < 20) {
+        while (sibling && contents.length < 30) {
           const tag = sibling.tagName.toLowerCase();
-          if (['h1', 'h2', 'h3', 'h4'].includes(tag)) break;
+          if (['h1', 'h2', 'h3'].includes(tag)) break;
           const st = safeGetText(sibling);
           if (st) contents.push(st);
           sibling = sibling.nextElementSibling;
@@ -82,66 +81,170 @@
     return '';
   }
 
-  function extractJDContent() {
-    const xpaths = [
-      "//*[@id='wrap']/div[2]/div[2]/div/div/div[2]/div/div[2]/p",
-      "//div[contains(@class,'job-detail')]//div[contains(@class,'detail-content')]",
-      "//div[contains(@class,'job-sec-text')]",
-    ];
-    for (const xpath of xpaths) {
-      const text = extractByXPath(xpath);
-      if (text) return text;
+  /**
+   * 策略2：找到页面中最大的文本块（排除导航、侧边栏等）
+   * Boss直聘的 JD 通常是页面中最大的连续文本区域
+   */
+  function extractLargestTextBlock() {
+    const candidates = document.querySelectorAll('div, section, article');
+    let best = '';
+    let bestScore = 0;
+
+    for (const el of candidates) {
+      // 排除明显不是内容的元素
+      if (['SCRIPT', 'STYLE', 'NAV', 'HEADER', 'FOOTER'].includes(el.tagName)) continue;
+      if (el.querySelector('nav, header, footer')) continue;
+      if (el.id === 'boss-say-api-result') continue;
+
+      const text = el.textContent?.trim() || '';
+      // 只看中文内容较多的块
+      const chineseChars = (text.match(/[一-鿿]/g) || []).length;
+      if (chineseChars < 30) continue;
+
+      // 评分：中文字符数 × 文本密度（文本/HTML比）
+      const htmlLen = el.innerHTML?.length || 1;
+      const density = text.length / htmlLen;
+      const score = chineseChars * density;
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = text;
+      }
     }
 
-    const cssSelectors = [
-      '.job-detail-section .job-sec-text',
-      '.job-detail-section .text',
-      '.job-sec-text',
-      '.job-detail .text',
-      '.detail-content',
-      '.job-detail div[data-name="job"]',
-      '.detail-box .job-detail',
-      '[class*="job-detail"]',
-      '[class*="job-desc"]',
-    ];
-    const cssResult = extractByCSS(cssSelectors);
-    if (cssResult) return cssResult;
-
-    return extractByKeyword();
+    // 清理：去掉太长的（可能是整个页面）
+    if (best.length > 5000) {
+      best = best.substring(0, 5000);
+    }
+    return best;
   }
 
-  function extractJobInfo() {
-    const selectors = {
-      jobTitle: '.job-name, [class*="job-name"]',
-      salary: '.salary, [class*="salary"]',
-      location: '.job-area, [class*="job-area"]',
-      company: '.company-name, [class*="company-name"]',
-      companyInfo: '.company-tag-list, [class*="company-tag"]',
-      bossName: '.info-primary .name, [class*="info-primary"] .name',
-      bossTitle: '.info-primary .boss-title, [class*="boss-title"]',
-      requirements: '.job-tags li, .tag-list li, [class*="tag"] li',
-      jobId: '[data-jobid], [data-jid]',
-    };
+  /**
+   * 策略3：匹配 Boss直聘常见页面结构
+   */
+  function extractByStructure() {
+    // Boss直聘 2024-2026 版本常见结构
+    const candidates = [
+      // 新版结构
+      document.querySelector('.job-detail-section'),
+      document.querySelector('.job-detail'),
+      document.querySelector('.detail-content'),
+      document.querySelector('.job-sec-text'),
+      // 宽泛匹配
+      document.querySelector('[class*="job-detail"]'),
+      document.querySelector('[class*="job-desc"]'),
+      document.querySelector('[class*="job-detail"] [class*="content"]'),
+      document.querySelector('[class*="detail"] [class*="text"]'),
+    ];
 
+    for (const el of candidates) {
+      if (!el) continue;
+      const text = el.textContent?.trim();
+      if (text && text.length > 50 && text.length < 5000) {
+        return text;
+      }
+    }
+    return '';
+  }
+
+  function extractJDContent() {
+    // 优先用关键词策略（最可靠，不依赖 class 名）
+    const keyword = extractByKeyword();
+    if (keyword && keyword.length > 50) return keyword;
+
+    // 降级：匹配已知结构
+    const structure = extractByStructure();
+    if (structure && structure.length > 50) return structure;
+
+    // 最后：取页面最大文本块
+    return extractLargestTextBlock();
+  }
+
+  // ==================== 元信息提取 ====================
+
+  /**
+   * 提取岗位基本信息 — 使用多种选择器降级
+   */
+  function extractJobInfo() {
     const jdContent = extractJDContent();
-    const jobEl = document.querySelector(selectors.jobId);
+
+    // 职位名称
+    const title = extractField([
+      '.job-name', '[class*="job-name"]', 'h1[class*="name"]',
+      '.job-title', '[class*="job-title"]',
+    ]);
+
+    // 薪资
+    const salary = extractField([
+      '.salary', '[class*="salary"]', '.job-salary',
+      '[class*="pay"]', '[class*="wage"]',
+    ]);
+
+    // 地点
+    const location = extractField([
+      '.job-area', '[class*="job-area"]', '.job-address',
+      '[class*="location"]', '[class*="area"]',
+    ]);
+
+    // 公司
+    const company = extractField([
+      '.company-name', '[class*="company-name"]',
+      '.info-company .name', '[class*="company"] .name',
+    ]);
+
+    // 公司标签
+    const companyInfo = extractField([
+      '.company-tag-list', '[class*="company-tag"]',
+      '.company-tags', '[class*="tag-list"]',
+    ]);
+
+    // Boss 信息
+    const bossName = extractField([
+      '.info-primary .name', '[class*="info-primary"] .name',
+      '.boss-name', '[class*="boss"] .name',
+    ]);
+
+    const bossTitle = extractField([
+      '.info-primary .boss-title', '[class*="boss-title"]',
+      '.boss-title', '[class*="boss"] [class*="title"]',
+    ]);
+
+    // 岗位标签
+    const requirementEls = document.querySelectorAll('.job-tags li, .tag-list li, [class*="tag"] li');
+    const requirements = Array.from(requirementEls).map(el => el.textContent?.trim()).filter(Boolean);
+
+    // Job ID
+    const jobEl = document.querySelector('[data-jobid], [data-jid]');
     const jobId = jobEl?.getAttribute('data-jobid') || jobEl?.getAttribute('data-jid') || '';
 
     return {
       id: jobId || hashStr(window.location.href),
-      title: cleanText(safeGetText(document.querySelector(selectors.jobTitle))),
-      salary: cleanText(safeGetText(document.querySelector(selectors.salary))),
-      location: cleanText(safeGetText(document.querySelector(selectors.location))),
-      company: cleanText(safeGetText(document.querySelector(selectors.company))),
-      bossName: cleanText(safeGetText(document.querySelector(selectors.bossName))),
-      bossTitle: cleanText(safeGetText(document.querySelector(selectors.bossTitle))),
+      title: cleanText(title),
+      salary: cleanText(salary),
+      location: cleanText(location),
+      company: cleanText(company),
+      bossName: cleanText(bossName),
+      bossTitle: cleanText(bossTitle),
       jd: cleanText(jdContent),
-      requirements: Array.from(document.querySelectorAll(selectors.requirements))
-        .map(el => el.textContent?.trim()).filter(Boolean),
-      companyInfo: cleanText(safeGetText(document.querySelector(selectors.companyInfo))),
+      requirements,
+      companyInfo: cleanText(companyInfo),
       url: window.location.href,
       jdHash: hashStr(jdContent),
     };
+  }
+
+  /**
+   * 通用字段提取：按选择器优先级逐个尝试
+   */
+  function extractField(selectors) {
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        const text = el.textContent?.trim();
+        if (text && text.length > 0 && text.length < 500) return text;
+      }
+    }
+    return '';
   }
 
   // ==================== 输入框注入（带重试） ====================
