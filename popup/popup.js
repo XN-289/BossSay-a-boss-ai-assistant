@@ -41,6 +41,11 @@
     inputResume: $('input-resume'),
     inputExperience: $('input-experience'),
     inputSkills: $('input-skills'),
+    inputEducation: $('input-education'),
+    inputAvailableDate: $('input-available-date'),
+    inputInternshipDuration: $('input-internship-duration'),
+    inputJobType: $('input-job-type'),
+    inputWantFulltime: $('input-want-fulltime'),
     inputGithub: $('input-github'),
     inputPortfolio: $('input-portfolio'),
     inputSelfIntro: $('input-selfintro'),
@@ -102,6 +107,11 @@
         els.inputResume.value = p.bossSay_resume || '';
         els.inputExperience.value = p.bossSay_experience || '';
         els.inputSkills.value = p.bossSay_skills || '';
+        els.inputEducation.value = p.bossSay_education || '';
+        els.inputAvailableDate.value = p.bossSay_availableDate || '';
+        els.inputInternshipDuration.value = p.bossSay_internshipDuration || '';
+        els.inputJobType.value = p.bossSay_jobType || '';
+        els.inputWantFulltime.value = p.bossSay_wantFulltime || '';
         els.inputGithub.value = p.bossSay_github || '';
         els.inputPortfolio.value = p.bossSay_portfolio || '';
         els.inputSelfIntro.value = p.bossSay_selfIntro || '';
@@ -461,13 +471,23 @@
 {
   "summary": "简历摘要（包含姓名、学校、学历、求职意向等核心信息，2-3句话概括）",
   "experience": "工作经历和项目经历（按时间倒序，包含公司名、职位、时间段、主要工作内容）",
-  "skills": "技能标签（用逗号分隔，如：React, Vue, Node.js, Python, MySQL）"
+  "skills": "技能标签（用逗号分隔，如：React, Vue, Node.js, Python, MySQL）",
+  "education": "学校和学历信息（如：兰州大学 本科 计算机科学，2022-2026）",
+  "availableDate": "到岗时间（如：随时到岗 / 7月15日后 / 一周内）",
+  "internshipDuration": "可实习时长（如：可实习6个月 / 长期 / 仅暑假）",
+  "jobType": "求职类型，只能是以下之一：实习、全职、都可",
+  "wantFulltime": "转正意愿，只能是以下之一：希望转正、可以转正、暂不考虑、仅实习"
 }
 
 注意：
 - summary 只放概括性描述，不要放完整工作经历
 - experience 放具体的工作/项目经历详情
 - skills 提取所有技术技能，用英文逗号分隔
+- education 提取学校、学历、专业、入学/毕业年份
+- availableDate 从简历中推断到岗时间，如果没写就留空
+- internshipDuration 从简历中推断可实习时长，如果没写就留空
+- jobType 必须是"实习"、"全职"或"都可"之一，如果无法判断就留空
+- wantFulltime 必须是"希望转正"、"可以转正"、"暂不考虑"或"仅实习"之一，如果无法判断就留空
 - 如果信息不足，对应字段留空字符串
 
 简历原始文本：
@@ -501,6 +521,9 @@ ${textForAI}`;
           debugLog('summary=' + (parsed.summary?.substring(0, 80) || '空') + '...', 'data');
           debugLog('experience=' + (parsed.experience?.substring(0, 80) || '空') + '...', 'data');
           debugLog('skills=' + (parsed.skills || '空'), 'data');
+          debugLog('education=' + (parsed.education || '空'), 'data');
+          debugLog('到岗=' + (parsed.availableDate || '空') + ' 实习时长=' + (parsed.internshipDuration || '空'), 'data');
+          debugLog('求职类型=' + (parsed.jobType || '空') + ' 转正=' + (parsed.wantFulltime || '空'), 'data');
         } else {
           debugLog('❌ 无法匹配 JSON，AI 返回: ' + aiMessage.substring(0, 200), 'err');
           throw new Error('无法从 AI 返回中提取 JSON');
@@ -515,6 +538,11 @@ ${textForAI}`;
       if (parsed.summary) els.inputResume.value = parsed.summary;
       if (parsed.experience) els.inputExperience.value = parsed.experience;
       if (parsed.skills) els.inputSkills.value = parsed.skills;
+      if (parsed.education) els.inputEducation.value = parsed.education;
+      if (parsed.availableDate) els.inputAvailableDate.value = parsed.availableDate;
+      if (parsed.internshipDuration) els.inputInternshipDuration.value = parsed.internshipDuration;
+      if (parsed.jobType) els.inputJobType.value = parsed.jobType;
+      if (parsed.wantFulltime) els.inputWantFulltime.value = parsed.wantFulltime;
 
       // 显示成功状态
       statusEl.className = 'pdf-upload-status success';
@@ -553,6 +581,11 @@ ${textForAI}`;
       bossSay_resume: els.inputResume.value.trim(),
       bossSay_experience: els.inputExperience.value.trim(),
       bossSay_skills: els.inputSkills.value.trim(),
+      bossSay_education: els.inputEducation.value.trim(),
+      bossSay_availableDate: els.inputAvailableDate.value.trim(),
+      bossSay_internshipDuration: els.inputInternshipDuration.value.trim(),
+      bossSay_jobType: els.inputJobType.value,
+      bossSay_wantFulltime: els.inputWantFulltime.value,
       bossSay_github: els.inputGithub.value.trim(),
       bossSay_portfolio: els.inputPortfolio.value.trim(),
       bossSay_selfIntro: els.inputSelfIntro.value.trim(),
