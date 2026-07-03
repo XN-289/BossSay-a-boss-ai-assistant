@@ -15,11 +15,7 @@
     "https://www.zhipin.com/*",
     "https://zhipin.com/*",
     "https://*.zhipin.com/*",
-    "https://api.deepseek.com/*",
-    "https://api.openai.com/*",
-    "https://*.openai.com/*",
-    "https://api.anthropic.com/*",
-    "https://*.anthropic.com/*"
+    "<all_urls>"
   ],
   "action": {
     "default_popup": "popup/popup.html",
