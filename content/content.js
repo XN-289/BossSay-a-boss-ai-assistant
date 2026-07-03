@@ -302,7 +302,7 @@
     const btn = document.createElement('button');
     btn.id = BOSS_SAY_BTN_ID;
     btn.textContent = 'BossSay';
-    btn.title = '打开 BossSay (Alt+B)';
+    btn.title = '打开 BossSay';
     btn.style.cssText = [
       'position: fixed',
       'bottom: 24px',
