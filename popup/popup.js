@@ -179,10 +179,11 @@
         els.btnGenerate.style.display = 'flex';
         els.resultArea.style.display = 'none';
 
-        // 调试信息：显示数据来源和 JD 前200字
-        const source = currentJobInfo.source === 'api' ? 'API' : 'DOM';
-        const jdPreview = currentJobInfo.jd ? currentJobInfo.jd.substring(0, 200) : '(空)';
-        showSuccess('✅ 扫描成功[' + source + '] JD: ' + jdPreview);
+        // 调试信息
+        const debug = currentJobInfo.debug || '';
+        const source = currentJobInfo.source || 'unknown';
+        const jdPreview = currentJobInfo.jd ? currentJobInfo.jd.substring(0, 150) : '(空)';
+        showSuccess('[' + source + '] ' + debug + ' | JD: ' + jdPreview);
       } else {
         showError('未能从当前页面提取岗位信息');
       }

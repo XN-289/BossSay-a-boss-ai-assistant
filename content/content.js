@@ -306,27 +306,44 @@
 
       // 异步获取
       (async () => {
+        const debug = [];
+        const jobId = getJobIdFromURL();
+        debug.push('JobID:' + (jobId || '无'));
+
         // 方案1：调 API
-        let jobInfo = await fetchJobFromAPI();
-        if (jobInfo && jobInfo.title) {
-          jobInfo.source = 'api';
-        } else {
+        let jobInfo = null;
+        try {
+          jobInfo = await fetchJobFromAPI();
+          if (jobInfo && jobInfo.title) {
+            jobInfo.source = 'api';
+            debug.push('API成功:' + jobInfo.title);
+          } else {
+            debug.push('API失败:无有效数据');
+          }
+        } catch (e) {
+          debug.push('API异常:' + e.message);
+        }
+
+        if (!jobInfo || !jobInfo.title) {
           // 方案2：SSR 数据
           jobInfo = extractFromSSR();
-          if (jobInfo) {
+          if (jobInfo && jobInfo.title) {
             jobInfo.source = 'ssr';
+            debug.push('SSR成功:' + jobInfo.title);
           } else {
-            // 方案3：DOM（会拿到 CSS 混淆内容，但标记出来）
+            debug.push('SSR失败');
             jobInfo = {
               id: hashStr(window.location.href),
               title: '', salary: '', location: '', company: '',
               bossName: '', bossTitle: '', jd: '', requirements: [],
               companyInfo: '', url: window.location.href, jdHash: '',
               source: 'none',
+              debug: debug.join(' | '),
             };
           }
         }
 
+        if (jobInfo) jobInfo.debug = debug.join(' | ');
         cachedJobInfo = jobInfo;
         safeResponse(sendResponse, { success: true, jobInfo });
       })();
