@@ -656,9 +656,14 @@ ${textForAI}`;
     els.btnTestApi.textContent = '⏳ 测试中...';
 
     try {
-      const resp = await chrome.runtime.sendMessage({ type: 'TEST_API' });
+      const config = {
+        baseUrl: els.inputApiUrl.value.trim(),
+        apiKey: els.inputApiKey.value.trim(),
+        modelName: els.inputModel.value.trim(),
+      };
+      const resp = await chrome.runtime.sendMessage({ type: 'TEST_API', data: config });
       if (resp?.success) {
-        els.settingsSuccess.textContent = `✅ 连接成功！模型响应: "${resp.reply}"`;
+        els.settingsSuccess.textContent = '✅ 连接成功！模型响应: "' + resp.reply + '"';
         els.settingsSuccess.style.display = 'block';
         setTimeout(() => {
           els.settingsSuccess.style.display = 'none';
@@ -799,17 +804,26 @@ ${textForAI}`;
       const history = resp?.history || [];
 
       if (history.length === 0) {
-        els.historyList.innerHTML = '<p class="help-text">暂无历史记录</p>';
+        els.historyList.textContent = '暂无历史记录';
         return;
       }
 
-      els.historyList.innerHTML = history.slice(0, 20).map(item => `
-        <div class="history-item">
-          <div class="history-title">${item.jobTitle || '未知职位'} · ${item.company || ''}</div>
-          <div class="history-msg">${(item.message || '').substring(0, 60)}...</div>
-          <div class="history-time">${new Date(item.timestamp).toLocaleString()}</div>
-        </div>
-      `).join('');
+      els.historyList.textContent = '';
+      history.slice(0, 20).forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'history-item';
+        const title = document.createElement('div');
+        title.className = 'history-title';
+        title.textContent = (item.jobTitle || '未知职位') + ' · ' + (item.company || '');
+        const msg = document.createElement('div');
+        msg.className = 'history-msg';
+        msg.textContent = (item.message || '').substring(0, 60) + '...';
+        const time = document.createElement('div');
+        time.className = 'history-time';
+        time.textContent = new Date(item.timestamp).toLocaleString();
+        div.append(title, msg, time);
+        els.historyList.appendChild(div);
+      });
     } catch (e) {
       console.error('加载历史失败:', e);
     }

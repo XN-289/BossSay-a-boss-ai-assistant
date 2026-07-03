@@ -1,12 +1,11 @@
 /**
- * BossSay - Background Service Worker v5
- * 通过 content script 注入隐藏 iframe 来执行 API 调用
+ * BossSay - Background Service Worker v6
+ * 处理存储读写、导出导入、历史记录、风格配置
  */
 
-console.log('[BossSay] Service Worker v5 启动!');
-
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('[BossSay] 收到:', request.type);
+
+  // ===== 存储读写 =====
 
   if (request.type === 'GET_API_CONFIG') {
     chrome.storage.local.get('bossSay_apiConfig', (data) => {
@@ -36,40 +35,145 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
-  // AI 请求：通过 content script 注入 iframe
-  if (request.type === 'GENERATE_MESSAGE_DIRECT') {
-    const { systemPrompt, userMessage, apiConfig } = request.data;
+  // ===== API 测试 =====
 
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs[0]) {
-        sendResponse({ success: false, error: '没有活动标签页' });
-        return;
+  if (request.type === 'TEST_API') {
+    const config = request.data;
+    if (!config?.apiKey || !config?.baseUrl || !config?.modelName) {
+      sendResponse({ success: false, error: '请先填写完整的 API 配置' });
+      return false;
+    }
+
+    let url = config.baseUrl.trim();
+    if (!url.endsWith('/')) url += '/';
+    url += 'chat/completions';
+
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + config.apiKey,
+      },
+      body: JSON.stringify({
+        model: config.modelName,
+        messages: [{ role: 'user', content: 'Hi' }],
+        max_tokens: 10,
+      }),
+    })
+    .then(resp => resp.json())
+    .then(data => {
+      if (data.error) {
+        sendResponse({ success: false, error: data.error.message || JSON.stringify(data.error) });
+      } else {
+        const reply = data.choices?.[0]?.message?.content?.trim() || '(无回复)';
+        sendResponse({ success: true, reply });
+      }
+    })
+    .catch(err => {
+      sendResponse({ success: false, error: '网络请求失败: ' + err.message });
+    });
+    return true;
+  }
+
+  // ===== 风格配置 =====
+
+  if (request.type === 'GET_STYLE_PROMPTS') {
+    chrome.storage.local.get('bossSay_stylePrompts', (data) => {
+      sendResponse({ success: true, prompts: data.bossSay_stylePrompts || {} });
+    });
+    return true;
+  }
+
+  if (request.type === 'SAVE_STYLE_PROMPTS') {
+    chrome.storage.local.set({ bossSay_stylePrompts: request.data }, () => {
+      sendResponse({ success: true });
+    });
+    return true;
+  }
+
+  // ===== 导出/导入 =====
+
+  if (request.type === 'EXPORT_SETTINGS') {
+    const opts = request.data || {};
+    chrome.storage.local.get(null, (allData) => {
+      const exportData = { version: '2.0.0', timestamp: Date.now(), data: {} };
+
+      // 导出所有 bossSay_ 开头的 key
+      for (const [key, value] of Object.entries(allData)) {
+        if (!key.startsWith('bossSay_')) continue;
+
+        // 可选排除
+        if (opts.excludeApiKey && key === 'bossSay_apiConfig') {
+          const config = { ...value };
+          config.apiKey = '***';
+          exportData.data[key] = config;
+          continue;
+        }
+        if (opts.excludeResume && key === 'bossSay_profile') {
+          const profile = { ...value };
+          profile.bossSay_resume = '';
+          exportData.data[key] = profile;
+          continue;
+        }
+
+        exportData.data[key] = value;
       }
 
-      const tabId = tabs[0].id;
-      console.log('[BossSay] 向 tab', tabId, '发送 AI 请求');
+      sendResponse({ success: true, data: JSON.stringify(exportData, null, 2) });
+    });
+    return true;
+  }
 
-      chrome.tabs.sendMessage(tabId, {
-        type: 'DO_AI_FETCH',
-        data: { systemPrompt, userMessage, apiConfig },
-      }).then((result) => {
-        console.log('[BossSay] 收到结果:', result?.success);
-        sendResponse(result || { success: false, error: 'content script 无响应' });
-      }).catch((err) => {
-        console.error('[BossSay] 通信失败:', err.message);
-        sendResponse({ success: false, error: '通信失败: ' + err.message });
+  if (request.type === 'IMPORT_SETTINGS') {
+    try {
+      const importData = JSON.parse(request.data);
+      if (!importData.data) {
+        sendResponse({ success: false, message: '无效的备份文件' });
+        return false;
+      }
+
+      // 过滤掉 apiKey 被遮蔽的配置
+      const toImport = {};
+      for (const [key, value] of Object.entries(importData.data)) {
+        if (key === 'bossSay_apiConfig' && value.apiKey === '***') continue;
+        toImport[key] = value;
+      }
+
+      chrome.storage.local.set(toImport, () => {
+        sendResponse({ success: true });
+      });
+    } catch (e) {
+      sendResponse({ success: false, message: '文件解析失败: ' + e.message });
+    }
+    return true;
+  }
+
+  // ===== 历史记录 =====
+
+  if (request.type === 'GET_HISTORY') {
+    chrome.storage.local.get('bossSay_history', (data) => {
+      sendResponse({ success: true, history: data.bossSay_history || [] });
+    });
+    return true;
+  }
+
+  if (request.type === 'SAVE_HISTORY_ITEM') {
+    chrome.storage.local.get('bossSay_history', (data) => {
+      const history = data.bossSay_history || [];
+      history.unshift(request.data); // 最新的在前面
+      // 最多保留 50 条
+      if (history.length > 50) history.length = 50;
+      chrome.storage.local.set({ bossSay_history: history }, () => {
+        sendResponse({ success: true });
       });
     });
     return true;
   }
 
-  if (request.type === 'GENERATE_MESSAGE') {
-    sendResponse({ success: false, error: '请使用 PDF 上传功能' });
-    return false;
-  }
-
-  if (request.type === 'TEST_API') {
-    sendResponse({ success: false, error: '请使用 PDF 上传功能测试' });
-    return false;
+  if (request.type === 'CLEAR_HISTORY') {
+    chrome.storage.local.set({ bossSay_history: [] }, () => {
+      sendResponse({ success: true });
+    });
+    return true;
   }
 });

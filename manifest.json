@@ -14,7 +14,6 @@
     "https://www.zhipin.com/*",
     "https://zhipin.com/*",
     "https://*.zhipin.com/*",
-    "http://127.0.0.1:18752/*",
     "https://api.deepseek.com/*",
     "https://api.openai.com/*",
     "https://*.openai.com/*",

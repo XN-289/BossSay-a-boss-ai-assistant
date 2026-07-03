@@ -330,6 +330,42 @@
       </div>
 
       <div class="form-group">
+        <label>学校/学历 <span class="optional">选填</span></label>
+        <input type="text" id="opt-education" placeholder="如：兰州大学 本科 计算机科学">
+      </div>
+
+      <div class="form-group">
+        <label>到岗时间 <span class="optional">选填</span></label>
+        <input type="text" id="opt-available-date" placeholder="如：随时到岗 / 7月15日后">
+      </div>
+
+      <div class="form-group">
+        <label>实习时长 <span class="optional">选填</span></label>
+        <input type="text" id="opt-internship-duration" placeholder="如：可实习6个月 / 长期实习">
+      </div>
+
+      <div class="form-group">
+        <label>求职类型 <span class="optional">选填</span></label>
+        <select id="opt-job-type">
+          <option value="">请选择</option>
+          <option value="实习">实习</option>
+          <option value="全职">全职/正职</option>
+          <option value="都可">都可以</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>转正意愿 <span class="optional">选填</span></label>
+        <select id="opt-want-fulltime">
+          <option value="">请选择</option>
+          <option value="希望转正">希望转正</option>
+          <option value="可以转正">可以转正</option>
+          <option value="暂不考虑">暂不考虑</option>
+          <option value="仅实习">仅实习</option>
+        </select>
+      </div>
+
+      <div class="form-group">
         <label>GitHub 仓库 <span class="optional">选填</span></label>
         <input type="text" id="opt-github" placeholder="GitHub 用户名或重点仓库链接">
       </div>
@@ -398,7 +434,7 @@
     </div>
 
     <footer>
-      <p>BossSay v1.0.0 · MIT License</p>
+      <p>BossSay v2.0.0 · MIT License</p>
     </footer>
   </div>
 
@@ -417,6 +453,11 @@
             document.getElementById('opt-resume').value = p.bossSay_resume || '';
             document.getElementById('opt-experience').value = p.bossSay_experience || '';
             document.getElementById('opt-skills').value = p.bossSay_skills || '';
+            document.getElementById('opt-education').value = p.bossSay_education || '';
+            document.getElementById('opt-available-date').value = p.bossSay_availableDate || '';
+            document.getElementById('opt-internship-duration').value = p.bossSay_internshipDuration || '';
+            document.getElementById('opt-job-type').value = p.bossSay_jobType || '';
+            document.getElementById('opt-want-fulltime').value = p.bossSay_wantFulltime || '';
             document.getElementById('opt-github').value = p.bossSay_github || '';
             document.getElementById('opt-portfolio').value = p.bossSay_portfolio || '';
             document.getElementById('opt-selfintro').value = p.bossSay_selfIntro || '';
@@ -441,6 +482,11 @@
           bossSay_resume: document.getElementById('opt-resume').value.trim(),
           bossSay_experience: document.getElementById('opt-experience').value.trim(),
           bossSay_skills: document.getElementById('opt-skills').value.trim(),
+          bossSay_education: document.getElementById('opt-education').value.trim(),
+          bossSay_availableDate: document.getElementById('opt-available-date').value.trim(),
+          bossSay_internshipDuration: document.getElementById('opt-internship-duration').value.trim(),
+          bossSay_jobType: document.getElementById('opt-job-type').value,
+          bossSay_wantFulltime: document.getElementById('opt-want-fulltime').value,
           bossSay_github: document.getElementById('opt-github').value.trim(),
           bossSay_portfolio: document.getElementById('opt-portfolio').value.trim(),
           bossSay_selfIntro: document.getElementById('opt-selfintro').value.trim(),

@@ -9,7 +9,7 @@ if (!window._bossSayApiCaller) {
 
   // 创建结果容器
   const resultDiv = document.createElement('div');
-  resultDiv.id = 'boss-say-result';
+  resultDiv.id = 'boss-say-api-result';
   resultDiv.style.display = 'none';
   document.body.appendChild(resultDiv);
 
