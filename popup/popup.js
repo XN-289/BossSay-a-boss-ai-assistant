@@ -173,17 +173,34 @@
 
       if (resp?.success && resp.jobInfo) {
         currentJobInfo = resp.jobInfo;
+
+        // 如果 JD 为空，尝试从剪贴板读取（用户可能已复制 JD 文字）
+        if (!currentJobInfo.jd || currentJobInfo.jd.length < 20) {
+          try {
+            const clipText = await navigator.clipboard.readText();
+            if (clipText && clipText.length > 50 && /岗位职责|工作内容|任职要求|岗位要求|职位描述|工作职责|任职资格/.test(clipText)) {
+              currentJobInfo.jd = clipText;
+              currentJobInfo.source = 'clipboard';
+            }
+          } catch (e) {
+            // 剪贴板读取需要权限，忽略
+          }
+        }
+
         els.jobTitle.textContent = currentJobInfo.title || '未识别到职位名称';
         els.jobMeta.textContent = [currentJobInfo.company, currentJobInfo.salary, currentJobInfo.location].filter(Boolean).join(' · ');
         els.jobInfoCard.style.display = 'block';
         els.btnGenerate.style.display = 'flex';
         els.resultArea.style.display = 'none';
 
-        // 调试信息
-        const debug = currentJobInfo.debug || '';
+        // 状态提示
         const source = currentJobInfo.source || 'unknown';
-        const jdPreview = currentJobInfo.jd ? currentJobInfo.jd.substring(0, 150) : '(空)';
-        showSuccess('[' + source + '] ' + debug + ' | JD: ' + jdPreview);
+        const jdLen = currentJobInfo.jd ? currentJobInfo.jd.length : 0;
+        if (jdLen > 20) {
+          showSuccess('✅ 扫描成功[' + source + '] JD:' + jdLen + '字');
+        } else {
+          showError('⚠️ JD 内容为空。请在页面上选中 JD 文字 → Ctrl+C 复制 → 再点扫描');
+        }
       } else {
         showError('未能从当前页面提取岗位信息');
       }
