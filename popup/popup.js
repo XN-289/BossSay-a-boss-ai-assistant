@@ -213,20 +213,36 @@
     els.btnGenerate.innerHTML = '<span class="loading"></span> AI 思考中...';
 
     try {
-      const resp = await chrome.runtime.sendMessage({
-        type: 'GENERATE_MESSAGE',
-        data: { jobInfo: currentJobInfo, style },
+      // 获取 API 配置
+      const configResp = await chrome.runtime.sendMessage({ type: 'GET_API_CONFIG' });
+      const apiConfig = configResp?.config;
+      if (!apiConfig?.apiKey || !apiConfig?.baseUrl || !apiConfig?.modelName) {
+        throw new Error('请先在设置页面配置 AI 模型');
+      }
+
+      // 获取求职者资料
+      const profileResp = await chrome.runtime.sendMessage({ type: 'GET_PROFILE' });
+      const profile = profileResp?.profile || {};
+
+      // 获取自定义 prompt
+      const customPrompt = await new Promise(resolve => {
+        chrome.storage.local.get('bossSay_customPrompt', data => resolve(data.bossSay_customPrompt || ''));
       });
 
-      if (resp?.success) {
-        els.messageOutput.value = resp.message;
-        els.resultArea.style.display = 'block';
-        showSuccess('✅ 消息生成成功');
-      } else {
-        showError(resp?.error || '生成失败，请重试');
-      }
+      // 直接调用 ai-client.js
+      const message = await generateMessage({
+        apiConfig,
+        profile,
+        jobInfo: currentJobInfo,
+        style,
+        customPrompt,
+      });
+
+      els.messageOutput.value = message;
+      els.resultArea.style.display = 'block';
+      showSuccess('✅ 消息生成成功');
     } catch (error) {
-      showError('请求失败：' + error.message);
+      showError('生成失败：' + error.message);
     } finally {
       els.btnGenerate.disabled = false;
       els.btnGenerate.innerHTML = '✨ AI 生成打招呼消息';
