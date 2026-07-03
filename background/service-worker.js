@@ -17,6 +17,65 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  // ===== 岗位信息获取（从 service worker 调 API，不触发页面安全检测） =====
+
+  if (request.type === 'FETCH_JOB_DETAIL') {
+    const jobId = request.data?.jobId;
+    if (!jobId) {
+      sendResponse({ success: false, error: '无 Job ID' });
+      return false;
+    }
+
+    const urls = [
+      `https://www.zhipin.com/wapi/zpgeek/job/detail.json?jobId=${jobId}`,
+      `https://www.zhipin.com/wapi/zpgeek/job/detail.json?lid=${jobId}`,
+      `https://www.zhipin.com/wapi/zpgeek/job/detail.json?encryptJobId=${jobId}`,
+    ];
+
+    (async () => {
+      for (const url of urls) {
+        try {
+          const resp = await fetch(url, {
+            credentials: 'include',
+            headers: {
+              'Accept': 'application/json',
+              'Referer': 'https://www.zhipin.com/',
+            },
+          });
+          if (!resp.ok) continue;
+
+          const data = await resp.json();
+          const job = data?.data || data?.zpData;
+          if (!job) continue;
+
+          const hasTitle = job.jobName || job.title || job.positionName;
+          if (!hasTitle) continue;
+
+          sendResponse({
+            success: true,
+            jobInfo: {
+              title: job.jobName || job.title || '',
+              salary: job.salary || job.salaryDesc || '',
+              location: [job.cityName, job.areaDistrict].filter(Boolean).join(' '),
+              company: job.brandName || job.companyName || '',
+              bossName: job.bossName || '',
+              jd: job.postDescription || job.jobDesc || job.description || '',
+              requirements: Array.isArray(job.skills) ? job.skills.map(s => typeof s === 'string' ? s : s.name || '').filter(Boolean) : [],
+              companyInfo: [job.brandScaleName, job.brandIndustry].filter(Boolean).join(' · '),
+              source: 'sw-api',
+            },
+          });
+          return;
+        } catch (e) {
+          continue;
+        }
+      }
+      sendResponse({ success: false, error: 'API 无结果' });
+    })();
+
+    return true; // async
+  }
+
   // ===== 存储读写 =====
 
   if (request.type === 'GET_API_CONFIG') {

@@ -283,8 +283,34 @@
 
       // 方案2：DOM 提取（降级）
       jobInfo = extractFromDOM();
-      debug.push('title:' + (jobInfo.title || '无'));
-      debug.push('company:' + (jobInfo.company || '无'));
+      debug.push('DOM:' + (jobInfo.title || '无'));
+
+      // 方案3：通过 service worker 调 API（不触发页面安全检测）
+      if (jobId) {
+        chrome.runtime.sendMessage({ type: 'FETCH_JOB_DETAIL', data: { jobId: jobId } }, function(apiResp) {
+          if (apiResp && apiResp.success && apiResp.jobInfo) {
+            // API 数据合并
+            jobInfo.title = apiResp.jobInfo.title || jobInfo.title;
+            jobInfo.salary = apiResp.jobInfo.salary || jobInfo.salary;
+            jobInfo.company = apiResp.jobInfo.company || jobInfo.company;
+            jobInfo.location = apiResp.jobInfo.location || jobInfo.location;
+            jobInfo.bossName = apiResp.jobInfo.bossName || jobInfo.bossName;
+            jobInfo.jd = apiResp.jobInfo.jd || jobInfo.jd;
+            jobInfo.requirements = apiResp.jobInfo.requirements || jobInfo.requirements;
+            jobInfo.companyInfo = apiResp.jobInfo.companyInfo || jobInfo.companyInfo;
+            jobInfo.source = apiResp.jobInfo.source;
+            debug.push('SW-API成功:' + jobInfo.title);
+          } else {
+            debug.push('SW-API:' + (apiResp?.error || '失败'));
+          }
+          debug.push('JD:' + (jobInfo.jd ? jobInfo.jd.length + '字' : '无'));
+          jobInfo.debug = debug.join(' | ');
+          cachedJobInfo = jobInfo;
+          try { sendResponse({ success: true, jobInfo: jobInfo }); } catch(e) {}
+        });
+        return true; // async
+      }
+
       debug.push('JD:' + (jobInfo.jd ? jobInfo.jd.length + '字' : '无'));
       jobInfo.debug = debug.join(' | ');
       cachedJobInfo = jobInfo;
