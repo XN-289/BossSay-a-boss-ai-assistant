@@ -1,9 +1,21 @@
 /**
- * BossSay - Background Service Worker v6
- * 处理存储读写、导出导入、历史记录、风格配置
+ * BossSay - Background Service Worker v7
+ * 处理存储读写、导出导入、历史记录、风格配置、打开弹窗
  */
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+
+  // ===== 打开弹窗 =====
+
+  if (request.type === 'OPEN_POPUP') {
+    // 尝试打开弹窗（需要用户手势触发）
+    chrome.action.openPopup().then(() => {
+      sendResponse({ success: true });
+    }).catch(() => {
+      sendResponse({ success: false });
+    });
+    return true;
+  }
 
   // ===== 存储读写 =====
 

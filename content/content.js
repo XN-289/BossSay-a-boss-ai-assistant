@@ -292,6 +292,56 @@
     return false;
   }
 
+  // ==================== BossSay 按钮 ====================
+
+  const BOSS_SAY_BTN_ID = 'boss-say-open-btn';
+
+  function injectBossSayButton() {
+    if (document.getElementById(BOSS_SAY_BTN_ID)) return;
+
+    const btn = document.createElement('button');
+    btn.id = BOSS_SAY_BTN_ID;
+    btn.textContent = 'BossSay';
+    btn.title = '打开 BossSay (Alt+B)';
+    btn.style.cssText = [
+      'position: fixed',
+      'bottom: 24px',
+      'right: 24px',
+      'z-index: 999999',
+      'padding: 10px 18px',
+      'background: linear-gradient(135deg, #4FACFE 0%, #00F2FE 100%)',
+      'color: #fff',
+      'border: none',
+      'border-radius: 24px',
+      'font-size: 14px',
+      'font-weight: 600',
+      'cursor: pointer',
+      'box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4)',
+      'transition: all 0.2s',
+      'font-family: -apple-system, BlinkMacSystemFont, sans-serif',
+      'letter-spacing: 0.5px',
+    ].join(';');
+
+    btn.addEventListener('mouseenter', () => {
+      btn.style.transform = 'translateY(-2px)';
+      btn.style.boxShadow = '0 6px 20px rgba(79, 172, 254, 0.5)';
+    });
+    btn.addEventListener('mouseleave', () => {
+      btn.style.transform = '';
+      btn.style.boxShadow = '0 4px 15px rgba(79, 172, 254, 0.4)';
+    });
+
+    btn.addEventListener('click', () => {
+      chrome.runtime.sendMessage({ type: 'OPEN_POPUP' }).catch(() => {
+        // 如果 openPopup 失败，提示用户
+        btn.textContent = '请按 Alt+B';
+        setTimeout(() => { btn.textContent = 'BossSay'; }, 2000);
+      });
+    });
+
+    document.body.appendChild(btn);
+  }
+
   // ==================== 监听消息 ====================
 
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -314,5 +364,27 @@
 
     return true;
   });
+
+  // ==================== 初始化 ====================
+
+  function init() {
+    injectBossSayButton();
+  }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(init, 500);
+  } else {
+    window.addEventListener('load', () => setTimeout(init, 500));
+  }
+
+  // SPA 页面 URL 变化时重新注入
+  let lastUrl = location.href;
+  const urlObserver = new MutationObserver(() => {
+    if (location.href !== lastUrl) {
+      lastUrl = location.href;
+      setTimeout(init, 1000);
+    }
+  });
+  urlObserver.observe(document.body, { childList: true, subtree: true });
 
 })();

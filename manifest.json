@@ -58,5 +58,13 @@
       "matches": ["<all_urls>"]
     }
   ],
-  "options_page": "options/options.html"
+  "options_page": "options/options.html",
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+B"
+      },
+      "description": "打开 BossSay"
+    }
+  }
 }
