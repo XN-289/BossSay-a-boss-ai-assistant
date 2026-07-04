@@ -58,6 +58,10 @@
       </button>
 
       <div class="result-area" id="result-area" style="display:none">
+        <div class="match-score" id="match-score" style="display:none">
+          <span class="match-score-label">匹配度</span>
+          <span class="match-score-value" id="match-score-value">0%</span>
+        </div>
         <label>生成的消息（可编辑）：</label>
         <textarea id="message-output" rows="6"></textarea>
         <div class="result-actions">
@@ -65,6 +69,10 @@
           <button class="btn btn-secondary" id="btn-copy">📋 复制</button>
           <button class="btn btn-secondary" id="btn-regen">🔄 重生成</button>
         </div>
+        <details class="trace-panel" id="trace-panel" style="display:none">
+          <summary>🧠 AI 推理过程</summary>
+          <div class="trace-body" id="trace-body"></div>
+        </details>
       </div>
 
       <div class="error-msg" id="error-msg" style="display:none"></div>
@@ -268,6 +276,8 @@
   <script src="../lib/pdf.min.js"></script>
   <script src="../lib/pdf-extractor.js"></script>
   <script src="../lib/ai-client.js"></script>
+  <script src="../lib/agent.js"></script>
+  <script src="../lib/evaluate.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

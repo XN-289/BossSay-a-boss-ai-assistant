@@ -21,6 +21,10 @@
     jobMeta: $('job-meta'),
     jdInput: $('jd-input'),
     jdPasteSection: $('jd-paste-section'),
+    matchScore: $('match-score'),
+    matchScoreValue: $('match-score-value'),
+    tracePanel: $('trace-panel'),
+    traceBody: $('trace-body'),
     styleSelect: $('style-select'),
     btnExtract: $('btn-extract'),
     btnGenerate: $('btn-generate'),
@@ -256,7 +260,7 @@
         jobInfo.jd = manualJD;
       }
 
-      // Map bossSay_ prefixed keys to unprefixed keys for ai-client.js
+      // Map bossSay_ prefixed keys to unprefixed keys
       const mappedProfile = {
         resume: profile.bossSay_resume || '',
         experience: profile.bossSay_experience || '',
@@ -271,29 +275,67 @@
         selfIntro: profile.bossSay_selfIntro || '',
       };
 
-      // 直接调用 ai-client.js
-      const message = await generateMessage({
-        apiConfig,
+      // API 调用函数（通过 service worker 代理）
+      let apiUrl = apiConfig.baseUrl.trim();
+      if (!apiUrl.endsWith('/')) apiUrl += '/';
+      apiUrl += 'chat/completions';
+
+      const callAPI = async (messages) => {
+        const resp = await chrome.runtime.sendMessage({
+          type: 'AI_CHAT_COMPLETIONS',
+          data: {
+            url: apiUrl,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + apiConfig.apiKey,
+            },
+            body: {
+              model: apiConfig.modelName,
+              messages: messages,
+              temperature: 0.7,
+              max_tokens: 1000,
+            },
+          },
+        });
+        if (!resp.success) throw new Error(resp.error);
+        return resp.content;
+      };
+
+      // 执行 Agent 多步推理链
+      const result = await BossAgent.run({
         profile: mappedProfile,
         jobInfo: jobInfo,
-        style,
-        customPrompt: '',
+        style: style,
+        callAPI: callAPI,
       });
 
-      els.messageOutput.value = message;
+      els.messageOutput.value = result.message;
       els.resultArea.style.display = 'block';
-      showSuccess('✅ 消息生成成功');
 
-      // 保存历史记录
-      chrome.runtime.sendMessage({
-        type: 'SAVE_HISTORY_ITEM',
-        data: {
-          jobTitle: currentJobInfo.title,
-          company: currentJobInfo.company,
-          message: message,
-          timestamp: Date.now(),
-        },
-      }).catch(() => {});
+      // 显示匹配度
+      if (result.matchScore !== undefined) {
+        els.matchScoreValue.textContent = result.matchScore + '%';
+        els.matchScore.style.display = 'flex';
+      }
+
+      // 显示推理链
+      if (result.trace && result.trace.length > 0) {
+        renderTrace(result.trace);
+        els.tracePanel.style.display = 'block';
+      }
+
+      showSuccess('✅ 消息生成成功（' + result.trace.length + ' 步推理）');
+
+      // 记录评估数据
+      BossEvaluate.recordGeneration({
+        jobTitle: jobInfo.title,
+        company: jobInfo.company,
+        style: style,
+        message: result.message,
+        matchScore: result.matchScore,
+        trace: result.trace,
+      });
+
     } catch (error) {
       showError('生成失败：' + error.message);
     } finally {
@@ -908,6 +950,56 @@ ${textForAI}`;
   });
 
   // ==================== 工具函数 ====================
+
+  function renderTrace(trace) {
+    const STEP_NAMES = {
+      analyze_jd: '📋 分析 JD',
+      match_resume: '🔗 匹配简历',
+      evaluate_fit: '📊 评估匹配度',
+      generate_draft: '✍️ 生成消息',
+      review: '🔍 自我审查',
+      revise: '🔧 修正消息',
+    };
+
+    els.traceBody.textContent = '';
+    for (const step of trace) {
+      const div = document.createElement('div');
+      div.className = 'trace-step';
+
+      const name = document.createElement('div');
+      name.className = 'trace-step-name';
+      name.textContent = STEP_NAMES[step.step] || step.step;
+
+      const detail = document.createElement('div');
+      detail.className = 'trace-step-detail';
+
+      if (step.step === 'analyze_jd' && step.result) {
+        detail.textContent = '核心要求: ' + (step.result.coreRequirements || []).join(', ') +
+          '\n关键技能: ' + (step.result.keySkills || []).join(', ');
+      } else if (step.step === 'match_resume' && step.result) {
+        detail.textContent = '匹配技能: ' + (step.result.matchedSkills || []).join(', ') +
+          '\n匹配经历: ' + (step.result.matchedExperience || []).join(', ') +
+          '\n匹配度: ' + Math.round((step.result.matchRatio || 0) * 100) + '%';
+      } else if (step.step === 'evaluate_fit' && step.result) {
+        detail.textContent = '分数: ' + (step.result.score || 0) + '分' +
+          '\n策略: ' + (step.result.strategy || '');
+      } else if (step.step === 'generate_draft') {
+        detail.textContent = step.success ? '✅ 生成成功' : '❌ ' + (step.error || '失败');
+      } else if (step.step === 'review' && step.result) {
+        const issues = step.result.issues || [];
+        detail.textContent = '评分: ' + (step.result.score || 0) + '分' +
+          '\n问题: ' + (issues.length > 0 ? issues.join('; ') : '无') +
+          '\n编造检测: ' + (step.result.hasFabrication ? '⚠️ 有编造' : '✅ 无编造');
+      } else if (step.step === 'revise') {
+        detail.textContent = step.success ? '✅ 已修正' : '⚠️ 修正失败';
+      } else {
+        detail.textContent = step.success ? '✅ 完成' : '❌ ' + (step.error || '失败');
+      }
+
+      div.append(name, detail);
+      els.traceBody.appendChild(div);
+    }
+  }
 
   function showError(msg) {
     els.errorMsg.textContent = '❌ ' + msg;
