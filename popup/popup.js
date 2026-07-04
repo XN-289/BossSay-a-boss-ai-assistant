@@ -308,23 +308,34 @@
 
       // API 调用函数（通过 service worker 代理）
       const callAPI = async (messages) => {
-        const resp = await chrome.runtime.sendMessage({
-          type: 'AI_CHAT_COMPLETIONS',
-          data: {
-            url: apiUrl,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ' + apiConfig.apiKey,
+        let resp;
+        try {
+          resp = await chrome.runtime.sendMessage({
+            type: 'AI_CHAT_COMPLETIONS',
+            data: {
+              url: apiUrl,
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + apiConfig.apiKey,
+              },
+              body: {
+                model: apiConfig.modelName,
+                messages: messages,
+                temperature: 0.7,
+                max_tokens: 1000,
+              },
             },
-            body: {
-              model: apiConfig.modelName,
-              messages: messages,
-              temperature: 0.7,
-              max_tokens: 1000,
-            },
-          },
-        });
-        if (!resp.success) throw new Error(resp.error);
+          });
+        } catch (e) {
+          throw new Error('插件后台未就绪，请稍后重试');
+        }
+
+        if (!resp) {
+          throw new Error('插件后台无响应，请刷新页面后重试');
+        }
+        if (!resp.success) {
+          throw new Error(resp.error || 'API 调用失败');
+        }
         return resp.content;
       };
 
