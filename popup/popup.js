@@ -319,8 +319,15 @@
           max_tokens: 2000,
         };
 
-        // 方式1: popup 直接 fetch（有 <all_urls> host_permissions）
+        // 调试信息
+        const debugInfo = [];
+        debugInfo.push('URL: ' + apiUrl);
+        debugInfo.push('Model: ' + apiConfig.modelName);
+        debugInfo.push('Key: ' + apiConfig.apiKey.substring(0, 8) + '...');
+
+        // 方式1: popup 直接 fetch
         try {
+          debugInfo.push('尝试 popup 直接 fetch...');
           const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
@@ -330,25 +337,34 @@
             body: JSON.stringify(requestBody),
           });
 
+          debugInfo.push('HTTP: ' + response.status);
+
           if (!response.ok) {
             const errText = await response.text();
+            debugInfo.push('Error: ' + errText.substring(0, 100));
             throw new Error('API ' + response.status + ': ' + errText.substring(0, 200));
           }
 
           const data = await response.json();
           const msg = data.choices?.[0]?.message;
+          debugInfo.push('content: ' + JSON.stringify(msg?.content || '').substring(0, 100));
+          debugInfo.push('reasoning: ' + JSON.stringify(msg?.reasoning_content || '').substring(0, 50));
+
           const content = (msg?.content || msg?.reasoning_content || '').trim();
-          if (!content) throw new Error('AI 返回空内容');
+          if (!content) {
+            debugInfo.push('FULL RESP: ' + JSON.stringify(data).substring(0, 300));
+            throw new Error('AI 返回空内容\n\n调试信息:\n' + debugInfo.join('\n'));
+          }
           return content;
         } catch (fetchErr) {
-          // 方式2: 如果 popup fetch 失败（CORS），走 service worker 代理
           if (fetchErr.message.includes('Failed to fetch') || fetchErr.message.includes('NetworkError')) {
+            debugInfo.push('popup fetch 失败，走 service worker...');
             const resp = await chrome.runtime.sendMessage({
               type: 'AI_CHAT_COMPLETIONS',
               data: { url: apiUrl, headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiConfig.apiKey }, body: requestBody },
             });
-            if (!resp) throw new Error('插件后台无响应');
-            if (!resp.success) throw new Error(resp.error || 'API 调用失败');
+            if (!resp) throw new Error('插件后台无响应\n\n调试信息:\n' + debugInfo.join('\n'));
+            if (!resp.success) throw new Error((resp.error || 'API 调用失败') + '\n\n调试信息:\n' + debugInfo.join('\n'));
             return resp.content;
           }
           throw fetchErr;
