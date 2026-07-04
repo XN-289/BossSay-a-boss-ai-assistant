@@ -253,7 +253,11 @@
   // ==================== 初始化 ====================
 
   function init() {
-    injectBossSayButton();
+    // 只在搜索页和详情页注入按钮
+    var pageType = getPageType();
+    if (pageType === 'search' || pageType === 'detail') {
+      injectBossSayButton();
+    }
   }
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') {

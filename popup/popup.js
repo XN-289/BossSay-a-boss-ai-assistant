@@ -1,6 +1,6 @@
 /**
  * BossSay - Popup 脚本 v2
- * 升级：备份/恢复、API 测试、风格自定义、历史记录
+ * 升级：备份/恢复、API 测试、风格自定义、历史记录、统计面板
  */
 
 (function () {
@@ -76,6 +76,8 @@
     historyList: $('history-list'),
     btnClearHistory: $('btn-clear-history'),
     btnClearData: $('btn-clear-data'),
+    // 统计面板
+    statsPanel: $('stats-panel'),
   };
 
   let currentJobInfo = null;
@@ -89,8 +91,11 @@
       els.tabContents.forEach(c => c.classList.remove('active'));
       $(`tab-${tab.dataset.tab}`).classList.add('active');
 
-      // 切换到"更多"时加载历史
-      if (tab.dataset.tab === 'more') loadHistory();
+      // 切换到"更多"时加载历史和统计
+      if (tab.dataset.tab === 'more') {
+        loadHistory();
+        loadStats();
+      }
       // 切换到"设置"时加载风格配置
       if (tab.dataset.tab === 'settings') loadStyleEditor();
     });
@@ -150,7 +155,11 @@
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab?.url) return;
-      const isBoss = tab.url.includes('zhipin.com/job_detail') || tab.url.includes('zhipin.com/web/geek/job');
+      // FIX HIGH-6: 搜索页 URL 模式识别
+      const isBoss = tab.url.includes('zhipin.com/job_detail')
+        || tab.url.includes('zhipin.com/web/geek/job')
+        || tab.url.includes('zhipin.com/geek/jobs')
+        || tab.url.includes('zhipin.com/geek');
       if (isBoss) {
         els.pageGuide.style.display = 'none';
         els.btnExtract.style.display = 'flex';
@@ -253,6 +262,10 @@
       const profileResp = await chrome.runtime.sendMessage({ type: 'GET_PROFILE' });
       const profile = profileResp?.profile || {};
 
+      // FIX CRITICAL-1/CRITICAL-2: 获取用户自定义风格配置
+      const styleResp = await chrome.storage.local.get('bossSay_stylePrompts');
+      const stylePrompts = styleResp.bossSay_stylePrompts || {};
+
       // 合并手动粘贴的 JD
       const jobInfo = { ...currentJobInfo };
       const manualJD = els.jdInput?.value?.trim();
@@ -275,11 +288,12 @@
         selfIntro: profile.bossSay_selfIntro || '',
       };
 
-      // API 调用函数（通过 service worker 代理）
+      // FIX MED-3: Normalize URL to avoid double slashes
       let apiUrl = apiConfig.baseUrl.trim();
-      if (!apiUrl.endsWith('/')) apiUrl += '/';
+      apiUrl = apiUrl.replace(/\/+$/, '') + '/';
       apiUrl += 'chat/completions';
 
+      // API 调用函数（通过 service worker 代理）
       const callAPI = async (messages) => {
         const resp = await chrome.runtime.sendMessage({
           type: 'AI_CHAT_COMPLETIONS',
@@ -301,12 +315,25 @@
         return resp.content;
       };
 
+      // FIX MED-8: Per-step progress callback
+      const onProgress = (stepName, detail) => {
+        const STEP_LABELS = {
+          analyze_jd: '📋 分析岗位...',
+          evaluate_fit: '📊 评估匹配度...',
+          generate_draft: '✍️ 生成消息...',
+          revise: '🔧 修正消息...',
+        };
+        els.btnGenerate.innerHTML = '<span class="loading"></span> ' + (STEP_LABELS[stepName] || detail || '处理中...');
+      };
+
       // 执行 Agent 多步推理链
       const result = await BossAgent.run({
         profile: mappedProfile,
         jobInfo: jobInfo,
         style: style,
         callAPI: callAPI,
+        stylePrompts: stylePrompts,
+        onProgress: onProgress,
       });
 
       els.messageOutput.value = result.message;
@@ -318,15 +345,18 @@
         els.matchScore.style.display = 'flex';
       }
 
+      // FIX HIGH-4: Safe trace length access
+      const traceLen = (result.trace?.length || 0);
+
       // 显示推理链
-      if (result.trace && result.trace.length > 0) {
+      if (traceLen > 0) {
         renderTrace(result.trace);
         els.tracePanel.style.display = 'block';
       }
 
-      showSuccess('✅ 消息生成成功（' + result.trace.length + ' 步推理）');
+      showSuccess('✅ 消息生成成功（' + traceLen + ' 步推理）');
 
-      // 记录评估数据
+      // 记录评估数据（CRITICAL-6: 只用 BossEvaluate，不再单独发送 SAVE_HISTORY_ITEM）
       BossEvaluate.recordGeneration({
         jobTitle: jobInfo.title,
         company: jobInfo.company,
@@ -418,7 +448,7 @@
   async function callAIAPI(config, requestBody) {
     debugLog('popup 直接 fetch API...', 'step');
     let apiUrl = config.baseUrl.trim();
-    if (!apiUrl.endsWith('/')) apiUrl += '/';
+    apiUrl = apiUrl.replace(/\/+$/, '') + '/';
     apiUrl += 'chat/completions';
     debugLog('URL: ' + apiUrl, 'data');
 
@@ -740,6 +770,7 @@ ${textForAI}`;
   });
 
   // ==================== API 连接测试 ====================
+  // FIX CRITICAL-4: Use service worker proxy instead of direct fetch
 
   els.btnTestApi.addEventListener('click', async () => {
     hideMessages();
@@ -755,18 +786,31 @@ ${textForAI}`;
       if (!config.apiKey || !config.baseUrl || !config.modelName) {
         throw new Error('请先填写完整的 API 配置');
       }
+
+      // FIX MED-3: Normalize URL
       let url = config.baseUrl;
-      if (!url.endsWith('/')) url += '/';
+      url = url.replace(/\/+$/, '') + '/';
       url += 'chat/completions';
 
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + config.apiKey },
-        body: JSON.stringify({ model: config.modelName, messages: [{ role: 'user', content: 'Hi' }], max_tokens: 10 }),
+      // FIX CRITICAL-4: Go through service worker proxy
+      const resp = await chrome.runtime.sendMessage({
+        type: 'AI_CHAT_COMPLETIONS',
+        data: {
+          url: url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + config.apiKey,
+          },
+          body: {
+            model: config.modelName,
+            messages: [{ role: 'user', content: 'Hi' }],
+            max_tokens: 10,
+          },
+        },
       });
-      const data = await resp.json();
-      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-      const reply = data.choices?.[0]?.message?.content?.trim() || '(无回复)';
+
+      if (!resp.success) throw new Error(resp.error);
+      const reply = resp.content || '(无回复)';
       els.settingsSuccess.textContent = '✅ 连接成功！模型响应: "' + reply + '"';
       els.settingsSuccess.style.display = 'block';
       setTimeout(() => {
@@ -896,6 +940,81 @@ ${textForAI}`;
     reader.readAsText(file);
   });
 
+  // ==================== 统计面板 (CRITICAL-7) ====================
+
+  async function loadStats() {
+    if (!els.statsPanel) return;
+
+    try {
+      const stats = await BossEvaluate.getStats();
+
+      let html = `
+        <div class="stats-summary">
+          <div class="stats-row">
+            <div class="stats-item">
+              <span class="stats-number">${stats.total}</span>
+              <span class="stats-label">总记录</span>
+            </div>
+            <div class="stats-item">
+              <span class="stats-number">${stats.sent}</span>
+              <span class="stats-label">已发送</span>
+            </div>
+            <div class="stats-item">
+              <span class="stats-number">${stats.replied}</span>
+              <span class="stats-label">已回复</span>
+            </div>
+            <div class="stats-item">
+              <span class="stats-number">${stats.replyRate}%</span>
+              <span class="stats-label">回复率</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // 按风格统计
+      const styleNames = {
+        professional: '专业正式',
+        friendly: '热情亲切',
+        humor: '幽默轻松',
+        concise: '简洁明了',
+      };
+
+      if (Object.keys(stats.byStyle).length > 0) {
+        html += '<div class="stats-section"><h4>按风格统计</h4>';
+        for (const [style, data] of Object.entries(stats.byStyle)) {
+          html += `
+            <div class="stats-style-row">
+              <span class="stats-style-name">${styleNames[style] || style}</span>
+              <span class="stats-style-detail">发送 ${data.sent} / 回复 ${data.replied} / 回复率 ${data.replyRate}%</span>
+            </div>
+          `;
+        }
+        html += '</div>';
+      }
+
+      // 按匹配度统计
+      const matchLabels = { high: '高匹配 (70%+)', mid: '中匹配 (40-70%)', low: '低匹配 (<40%)' };
+      if (stats.byMatchScore) {
+        html += '<div class="stats-section"><h4>按匹配度统计</h4>';
+        for (const [group, data] of Object.entries(stats.byMatchScore)) {
+          const rate = data.sent > 0 ? Math.round((data.replied / data.sent) * 100) : 0;
+          html += `
+            <div class="stats-style-row">
+              <span class="stats-style-name">${matchLabels[group] || group}</span>
+              <span class="stats-style-detail">发送 ${data.sent} / 回复 ${data.replied} / 回复率 ${rate}%</span>
+            </div>
+          `;
+        }
+        html += '</div>';
+      }
+
+      els.statsPanel.innerHTML = html;
+    } catch (e) {
+      console.error('加载统计失败:', e);
+      els.statsPanel.innerHTML = '<p class="help-text">暂无统计数据</p>';
+    }
+  }
+
   // ==================== 历史记录 ====================
 
   async function loadHistory() {
@@ -912,16 +1031,49 @@ ${textForAI}`;
       history.slice(0, 20).forEach(item => {
         const div = document.createElement('div');
         div.className = 'history-item';
+
         const title = document.createElement('div');
         title.className = 'history-title';
         title.textContent = (item.jobTitle || '未知职位') + ' · ' + (item.company || '');
+
         const msg = document.createElement('div');
         msg.className = 'history-msg';
         msg.textContent = (item.message || '').substring(0, 60) + '...';
+
         const time = document.createElement('div');
         time.className = 'history-time';
         time.textContent = new Date(item.timestamp).toLocaleString();
-        div.append(title, msg, time);
+
+        // CRITICAL-7: Sent/Replied toggle buttons
+        const actions = document.createElement('div');
+        actions.className = 'history-actions';
+
+        const btnSent = document.createElement('button');
+        btnSent.className = 'btn-small ' + (item.sent ? 'btn-sent-active' : 'btn-sent');
+        btnSent.textContent = item.sent ? '✅ 已发送' : '📤 标记发送';
+        btnSent.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          await BossEvaluate.markSent(item.id);
+          loadHistory();
+          loadStats();
+        });
+
+        const btnReplied = document.createElement('button');
+        btnReplied.className = 'btn-small ' + (item.replied === true ? 'btn-replied-active' : 'btn-replied');
+        btnReplied.textContent = item.replied === true ? '💬 已回复' : '💬 标记回复';
+        btnReplied.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (item.replied === true) {
+            await BossEvaluate.markReplied(item.id, null);
+          } else {
+            await BossEvaluate.markReplied(item.id, true);
+          }
+          loadHistory();
+          loadStats();
+        });
+
+        actions.append(btnSent, btnReplied);
+        div.append(title, msg, time, actions);
         els.historyList.appendChild(div);
       });
     } catch (e) {

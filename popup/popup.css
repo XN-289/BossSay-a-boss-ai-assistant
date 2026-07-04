@@ -946,3 +946,125 @@ body::after {
   word-break: break-all;
   white-space: pre-wrap;
 }
+
+/* ==================== 统计面板 ==================== */
+
+.stats-panel {
+  padding: 16px;
+  background: rgba(255,255,255,0.85);
+  border-radius: 14px;
+  border: 1px solid rgba(200,230,255,0.5);
+  margin-bottom: 18px;
+}
+
+.stats-summary {
+  margin-bottom: 14px;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-around;
+  gap: 8px;
+}
+
+.stats-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: rgba(79,172,254,0.08);
+  border-radius: 10px;
+  min-width: 60px;
+}
+
+.stats-number {
+  font-size: 20px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #4FACFE, #00F2FE);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.stats-label {
+  font-size: 11px;
+  color: #888;
+}
+
+.stats-section {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(200,230,255,0.5);
+}
+
+.stats-section h4 {
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 8px;
+}
+
+.stats-style-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  margin-bottom: 4px;
+  background: rgba(255,255,255,0.6);
+  border-radius: 8px;
+}
+
+.stats-style-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #444;
+}
+
+.stats-style-detail {
+  font-size: 11px;
+  color: #888;
+}
+
+/* ==================== 历史操作按钮 ==================== */
+
+.history-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.btn-small {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-sent {
+  background: rgba(0,180,216,0.15);
+  color: #00B4D8;
+}
+
+.btn-sent:hover {
+  background: rgba(0,180,216,0.3);
+}
+
+.btn-sent-active {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  color: #fff;
+}
+
+.btn-replied {
+  background: rgba(255,107,107,0.15);
+  color: #FF6B6B;
+}
+
+.btn-replied:hover {
+  background: rgba(255,107,107,0.3);
+}
+
+.btn-replied-active {
+  background: linear-gradient(135deg, #4FACFE 0%, #00F2FE 100%);
+  color: #fff;
+}
