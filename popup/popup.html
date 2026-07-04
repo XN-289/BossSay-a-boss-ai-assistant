@@ -211,17 +211,17 @@
 
       <div class="form-group">
         <label>模型名称 <span class="required">*</span></label>
-        <input type="text" id="input-model" placeholder="deepseek-chat, qwen-turbo, glm-4-flash...">
-        <p class="help-text">DeepSeek 用 deepseek-chat，通义千问用 qwen-turbo，智谱用 glm-4-flash</p>
+        <input type="text" id="input-model" placeholder="deepseek-v4-flash, qwen-turbo, glm-4-flash...">
+        <p class="help-text">DeepSeek 推荐 deepseek-v4-flash（推理模型），通义千问用 qwen-turbo</p>
       </div>
 
       <div class="form-group">
         <label>快速选择</label>
         <div class="preset-list">
-          <button class="preset-btn" data-url="https://api.deepseek.com/v1" data-model="deepseek-chat">⭐ DeepSeek Chat</button>
+          <button class="preset-btn" data-url="https://api.deepseek.com/v1" data-model="deepseek-v4-flash">DeepSeek V4 Flash</button>
+          <button class="preset-btn" data-url="https://api.deepseek.com/v1" data-model="deepseek-v4-pro">DeepSeek V4 Pro</button>
           <button class="preset-btn" data-url="https://dashscope.aliyuncs.com/compatible-mode/v1" data-model="qwen-turbo">通义千问 Turbo</button>
-          <button class="preset-btn" data-url="https://open.bigmodel.cn/api/paas/v4" data-model="glm-4-flash">智谱 GLM-4-Flash</button>
-          <button class="preset-btn" data-url="https://api.moonshot.cn/v1" data-model="moonshot-v1-8k">Moonshot v1</button>
+          <button class="preset-btn" data-url="https://open.bigmodel.cn/api/paas/v4" data-model="glm-4-flash">智谱 GLM-4</button>
         </div>
         <p class="help-text">点击按钮自动填入 API 地址和模型名称</p>
       </div>

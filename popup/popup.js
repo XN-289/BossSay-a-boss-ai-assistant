@@ -310,37 +310,49 @@
       }
       apiUrl += '/chat/completions';
 
-      // API 调用函数（通过 service worker 代理）
+      // API 调用函数
       const callAPI = async (messages) => {
-        let resp;
-        try {
-          resp = await chrome.runtime.sendMessage({
-            type: 'AI_CHAT_COMPLETIONS',
-            data: {
-              url: apiUrl,
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + apiConfig.apiKey,
-              },
-              body: {
-                model: apiConfig.modelName,
-                messages: messages,
-                temperature: 0.7,
-                max_tokens: 1000,
-              },
-            },
-          });
-        } catch (e) {
-          throw new Error('插件后台未就绪，请稍后重试');
-        }
+        const requestBody = {
+          model: apiConfig.modelName,
+          messages: messages,
+          temperature: 0.7,
+          max_tokens: 2000,
+        };
 
-        if (!resp) {
-          throw new Error('插件后台无响应，请刷新页面后重试');
+        // 方式1: popup 直接 fetch（有 <all_urls> host_permissions）
+        try {
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + apiConfig.apiKey,
+            },
+            body: JSON.stringify(requestBody),
+          });
+
+          if (!response.ok) {
+            const errText = await response.text();
+            throw new Error('API ' + response.status + ': ' + errText.substring(0, 200));
+          }
+
+          const data = await response.json();
+          const msg = data.choices?.[0]?.message;
+          const content = (msg?.content || msg?.reasoning_content || '').trim();
+          if (!content) throw new Error('AI 返回空内容');
+          return content;
+        } catch (fetchErr) {
+          // 方式2: 如果 popup fetch 失败（CORS），走 service worker 代理
+          if (fetchErr.message.includes('Failed to fetch') || fetchErr.message.includes('NetworkError')) {
+            const resp = await chrome.runtime.sendMessage({
+              type: 'AI_CHAT_COMPLETIONS',
+              data: { url: apiUrl, headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiConfig.apiKey }, body: requestBody },
+            });
+            if (!resp) throw new Error('插件后台无响应');
+            if (!resp.success) throw new Error(resp.error || 'API 调用失败');
+            return resp.content;
+          }
+          throw fetchErr;
         }
-        if (!resp.success) {
-          throw new Error(resp.error || 'API 调用失败');
-        }
-        return resp.content;
       };
 
       // FIX MED-8: Per-step progress callback
