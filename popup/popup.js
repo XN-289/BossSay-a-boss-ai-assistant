@@ -18,9 +18,10 @@
     pageGuide: $('page-guide'),
     jobInfoCard: $('job-info-card'),
     jobTitle: $('job-title'),
-    jobMeta: $('job-meta'),
+    jobCompany: $('job-company'),
+    jobSalary: $('job-salary'),
+    jobLocation: $('job-location'),
     jdInput: $('jd-input'),
-    jdPasteSection: $('jd-paste-section'),
     matchScore: $('match-score'),
     matchScoreValue: $('match-score-value'),
     tracePanel: $('trace-panel'),
@@ -192,28 +193,21 @@
       }
 
       if (resp.pageType === 'search') {
-        // 搜索页：显示第一个匹配的岗位
         const jobs = resp.jobs || [];
         if (jobs.length === 0) {
           showError('未找到符合条件的岗位');
           return;
         }
         currentJobInfo = jobs[0];
-        els.jobTitle.textContent = currentJobInfo.title;
-        els.jobMeta.textContent = [currentJobInfo.company, currentJobInfo.salary, currentJobInfo.location, currentJobInfo.experience, currentJobInfo.education].filter(Boolean).join(' · ');
+        fillJobFields(currentJobInfo);
         els.jobInfoCard.style.display = 'block';
-        els.jdPasteSection.style.display = 'block';
-        els.jdInput.value = '';
         els.btnGenerate.style.display = 'flex';
         els.resultArea.style.display = 'none';
         showSuccess('✅ 搜索页扫描成功 | ' + jobs.length + ' 个岗位');
       } else if (resp.pageType === 'detail') {
         currentJobInfo = resp.jobInfo;
-        els.jobTitle.textContent = currentJobInfo.title || '未识别到职位名称';
-        els.jobMeta.textContent = [currentJobInfo.company, currentJobInfo.salary, currentJobInfo.location].filter(Boolean).join(' · ');
+        fillJobFields(currentJobInfo);
         els.jobInfoCard.style.display = 'block';
-        els.jdPasteSection.style.display = 'block';
-        els.jdInput.value = '';
         els.btnGenerate.style.display = 'flex';
         els.resultArea.style.display = 'none';
 
@@ -221,7 +215,7 @@
         if (jdLen > 20) {
           showSuccess('✅ 详情页扫描成功 | JD:' + jdLen + '字');
         } else {
-          showSuccess('✅ 已提取基本信息，可手动粘贴 JD 增强效果');
+          showSuccess('✅ 已提取基本信息，可手动补充 JD');
         }
       }
     } catch (error) {
@@ -232,16 +226,42 @@
     }
   });
 
+  function fillJobFields(job) {
+    els.jobTitle.value = job.title || '';
+    els.jobCompany.value = job.company || '';
+    els.jobSalary.value = job.salary || '';
+    els.jobLocation.value = job.location || '';
+    if (job.jd) els.jdInput.value = job.jd;
+  }
+
+  function readJobFields() {
+    return {
+      title: els.jobTitle.value.trim(),
+      company: els.jobCompany.value.trim(),
+      salary: els.jobSalary.value.trim(),
+      location: els.jobLocation.value.trim(),
+      jd: els.jdInput.value.trim(),
+    };
+  }
+
   // ==================== 生成消息 ====================
 
   els.btnGenerate.addEventListener('click', () => doGenerate());
   els.btnRegen.addEventListener('click', () => doGenerate());
 
   async function doGenerate() {
-    if (!currentJobInfo) {
-      showError('请先扫描岗位信息');
+    // 从可编辑字段读取岗位信息
+    const jobFields = readJobFields();
+    if (!jobFields.title && !jobFields.jd) {
+      showError('请先扫描岗位，或手动填写职位名称和 JD');
       return;
     }
+
+    // 构造 jobInfo（优先用手动编辑的值，其次用扫描的值）
+    const jobInfo = {
+      ...currentJobInfo,
+      ...jobFields,
+    };
 
     hideMessages();
     const style = els.styleSelect.value;
@@ -262,16 +282,9 @@
       const profileResp = await chrome.runtime.sendMessage({ type: 'GET_PROFILE' });
       const profile = profileResp?.profile || {};
 
-      // FIX CRITICAL-1/CRITICAL-2: 获取用户自定义风格配置
+      // 获取用户自定义风格配置
       const styleResp = await chrome.storage.local.get('bossSay_stylePrompts');
       const stylePrompts = styleResp.bossSay_stylePrompts || {};
-
-      // 合并手动粘贴的 JD
-      const jobInfo = { ...currentJobInfo };
-      const manualJD = els.jdInput?.value?.trim();
-      if (manualJD && manualJD.length > 20) {
-        jobInfo.jd = manualJD;
-      }
 
       // Map bossSay_ prefixed keys to unprefixed keys
       const mappedProfile = {

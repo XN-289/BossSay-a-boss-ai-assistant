@@ -30,13 +30,28 @@
       </div>
 
       <div class="job-info-card" id="job-info-card" style="display:none">
-        <div class="job-title" id="job-title"></div>
-        <div class="job-meta" id="job-meta"></div>
-      </div>
-
-      <div class="form-group" id="jd-paste-section" style="display:none">
-        <label>岗位描述（可选，手动粘贴）</label>
-        <textarea id="jd-input" rows="3" placeholder="从岗位详情页复制 JD 粘贴到这里，AI 会结合 JD 生成更精准的消息..."></textarea>
+        <div class="job-info-grid">
+          <div class="form-group form-group-sm">
+            <label>职位名称</label>
+            <input type="text" id="job-title" placeholder="如：前端开发实习生">
+          </div>
+          <div class="form-group form-group-sm">
+            <label>公司</label>
+            <input type="text" id="job-company" placeholder="如：字节跳动">
+          </div>
+          <div class="form-group form-group-sm">
+            <label>薪资</label>
+            <input type="text" id="job-salary" placeholder="如：200-300/天">
+          </div>
+          <div class="form-group form-group-sm">
+            <label>地点</label>
+            <input type="text" id="job-location" placeholder="如：北京海淀区">
+          </div>
+        </div>
+        <div class="form-group form-group-sm">
+          <label>岗位描述 <span class="optional">可选，手动粘贴可提升精准度</span></label>
+          <textarea id="jd-input" rows="3" placeholder="从岗位详情页复制 JD 粘贴到这里..."></textarea>
+        </div>
       </div>
 
       <div class="form-group">
