@@ -147,7 +147,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return resp.json();
       })
       .then(data => {
-        const content = data.choices?.[0]?.message?.content?.trim();
+        const msg = data.choices?.[0]?.message;
+        // 兼容推理模型（如 deepseek-v4-flash）：content 为空时取 reasoning_content
+        const content = (msg?.content || msg?.reasoning_content || '').trim();
         if (!content) throw new Error('AI 返回空内容');
         sendResponse({ success: true, content });
       })

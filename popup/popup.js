@@ -303,8 +303,12 @@
 
       // FIX MED-3: Normalize URL to avoid double slashes
       let apiUrl = apiConfig.baseUrl.trim();
-      apiUrl = apiUrl.replace(/\/+$/, '') + '/';
-      apiUrl += 'chat/completions';
+      apiUrl = apiUrl.replace(/\/+$/, '');
+      // 自动补全 /v1 路径（如果用户没填）
+      if (!apiUrl.endsWith('/v1') && !apiUrl.endsWith('/v1/') && !apiUrl.includes('/chat/completions')) {
+        apiUrl += '/v1';
+      }
+      apiUrl += '/chat/completions';
 
       // API 调用函数（通过 service worker 代理）
       const callAPI = async (messages) => {
@@ -471,9 +475,11 @@
    */
   async function callAIAPI(config, requestBody) {
     debugLog('popup 直接 fetch API...', 'step');
-    let apiUrl = config.baseUrl.trim();
-    apiUrl = apiUrl.replace(/\/+$/, '') + '/';
-    apiUrl += 'chat/completions';
+    let apiUrl = config.baseUrl.trim().replace(/\/+$/, '');
+    if (!apiUrl.endsWith('/v1') && !apiUrl.endsWith('/v1/') && !apiUrl.includes('/chat/completions')) {
+      apiUrl += '/v1';
+    }
+    apiUrl += '/chat/completions';
     debugLog('URL: ' + apiUrl, 'data');
 
     try {
@@ -811,10 +817,12 @@ ${textForAI}`;
         throw new Error('请先填写完整的 API 配置');
       }
 
-      // FIX MED-3: Normalize URL
-      let url = config.baseUrl;
-      url = url.replace(/\/+$/, '') + '/';
-      url += 'chat/completions';
+      // Normalize URL with auto /v1
+      let url = config.baseUrl.trim().replace(/\/+$/, '');
+      if (!url.endsWith('/v1') && !url.endsWith('/v1/') && !url.includes('/chat/completions')) {
+        url += '/v1';
+      }
+      url += '/chat/completions';
 
       // FIX CRITICAL-4: Go through service worker proxy
       const resp = await chrome.runtime.sendMessage({
