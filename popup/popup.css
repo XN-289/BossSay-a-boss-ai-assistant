@@ -1113,3 +1113,593 @@ body::after {
   background: linear-gradient(135deg, #4FACFE 0%, #00F2FE 100%);
   color: #fff;
 }
+
+/* ==================== v4.0.0 Agent Tab Styles ==================== */
+
+.agent-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(255,255,255,0.85);
+  border: 1px solid rgba(200,230,255,0.5);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #444;
+  backdrop-filter: blur(6px);
+}
+
+.agent-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.agent-status-dot.green {
+  background: #38ef7d;
+  box-shadow: 0 0 6px rgba(56,239,125,0.6);
+}
+
+.agent-status-dot.blue {
+  background: #4FACFE;
+  box-shadow: 0 0 6px rgba(79,172,254,0.6);
+}
+
+.agent-status-dot.yellow {
+  background: #FFD166;
+  box-shadow: 0 0 6px rgba(255,209,102,0.6);
+}
+
+.agent-status-dot.red {
+  background: #FF6B6B;
+  box-shadow: 0 0 6px rgba(255,107,107,0.6);
+}
+
+.agent-dashboard {
+  padding: 16px;
+  background: rgba(255,255,255,0.9);
+  border-radius: 14px;
+  border: 1px solid rgba(200,230,255,0.6);
+  box-shadow: 0 4px 12px rgba(79,172,254,0.15);
+  margin-bottom: 18px;
+}
+
+.agent-step-progress {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  background: rgba(255,255,255,0.6);
+  border-radius: 10px;
+  border: 1px solid rgba(200,230,255,0.4);
+  font-size: 13px;
+  color: #555;
+  transition: all 0.3s ease;
+}
+
+.step-item .step-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(200,230,255,0.4);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.step-item .step-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.step-item .step-time {
+  font-size: 11px;
+  color: #aaa;
+  flex-shrink: 0;
+}
+
+.step-item.active {
+  border-color: #4FACFE;
+  background: rgba(79,172,254,0.1);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.step-item.active .step-icon {
+  background: linear-gradient(135deg, #4FACFE, #00F2FE);
+  color: #fff;
+}
+
+.step-item.done {
+  border-color: rgba(56,239,125,0.4);
+}
+
+.step-item.done .step-icon {
+  background: rgba(56,239,125,0.2);
+  color: #27ae60;
+}
+
+.step-item.error {
+  border-color: rgba(255,107,107,0.4);
+  background: rgba(255,107,107,0.06);
+}
+
+.step-item.error .step-icon {
+  background: rgba(255,107,107,0.2);
+  color: #FF6B6B;
+}
+
+.progress-bar {
+  height: 4px;
+  background: rgba(200,230,255,0.5);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.progress-bar::after {
+  content: '';
+  display: block;
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(90deg, #4FACFE, #00F2FE);
+  border-radius: 2px;
+  animation: progressFill 1.5s ease-in-out infinite;
+}
+
+/* ==================== v4.0.0 Memory Panel Styles ==================== */
+
+.memory-panel {
+  padding: 16px;
+  background: rgba(255,255,255,0.9);
+  border-radius: 14px;
+  border: 1px solid rgba(200,230,255,0.6);
+  box-shadow: 0 4px 12px rgba(79,172,254,0.15);
+  margin-bottom: 18px;
+}
+
+.memory-card {
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.7);
+  border-left: 4px solid #4FACFE;
+  border-radius: 0 10px 10px 0;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #444;
+  line-height: 1.6;
+  transition: all 0.2s ease;
+}
+
+.memory-card:hover {
+  background: rgba(255,255,255,0.9);
+  box-shadow: 0 2px 8px rgba(79,172,254,0.1);
+}
+
+.memory-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(79,172,254,0.12);
+  border: 1px solid rgba(79,172,254,0.25);
+  border-radius: 12px;
+  font-size: 11px;
+  color: #00B4D8;
+  margin-right: 6px;
+  margin-bottom: 4px;
+}
+
+.company-knowledge {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.company-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  background: rgba(255,255,255,0.7);
+  border-radius: 10px;
+  border: 1px solid rgba(200,230,255,0.4);
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.company-item:hover {
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(79,172,254,0.1);
+}
+
+.company-item .company-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.company-item .company-stats {
+  font-size: 12px;
+  color: #888;
+}
+
+/* ==================== v4.0.0 Recommendation Styles ==================== */
+
+.recommendation-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.rec-card {
+  padding: 14px;
+  background: rgba(255,255,255,0.9);
+  border-radius: 14px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(79,172,254,0.1);
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.rec-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 14px;
+  padding: 2px;
+  background: linear-gradient(135deg, #4FACFE, #00F2FE);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.rec-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(79,172,254,0.2);
+}
+
+.rec-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.rec-card-value {
+  font-size: 22px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #4FACFE, #00F2FE);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 8px;
+}
+
+.rec-card-action {
+  display: inline-block;
+  padding: 6px 16px;
+  background: linear-gradient(135deg, #4FACFE 0%, #00F2FE 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.rec-card-action:hover {
+  box-shadow: 0 4px 12px rgba(79,172,254,0.4);
+  transform: translateY(-1px);
+}
+
+/* ==================== v4.0.0 Goal Tracker Styles ==================== */
+
+.goal-tracker {
+  padding: 16px;
+  background: rgba(255,255,255,0.9);
+  border-radius: 14px;
+  border: 1px solid rgba(200,230,255,0.6);
+  box-shadow: 0 4px 12px rgba(79,172,254,0.15);
+  margin-bottom: 18px;
+}
+
+.goal-item {
+  margin-bottom: 14px;
+}
+
+.goal-item:last-child {
+  margin-bottom: 0;
+}
+
+.goal-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: #444;
+  margin-bottom: 6px;
+}
+
+.goal-progress {
+  height: 8px;
+  background: rgba(200,230,255,0.5);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.goal-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4FACFE, #00F2FE);
+  border-radius: 4px;
+  transition: width 0.6s ease;
+  animation: progressFill 2s ease-in-out;
+}
+
+/* ==================== v4.0.0 Insight Cards ==================== */
+
+.insight-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.9);
+  border-radius: 12px;
+  border: 1px solid rgba(200,230,255,0.5);
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #444;
+  line-height: 1.6;
+  animation: slideIn 0.3s ease;
+}
+
+.insight-card.info {
+  border-left: 4px solid #4FACFE;
+  background: rgba(79,172,254,0.06);
+}
+
+.insight-card.success {
+  border-left: 4px solid #38ef7d;
+  background: rgba(56,239,125,0.06);
+}
+
+.insight-card.warning {
+  border-left: 4px solid #FFD166;
+  background: rgba(255,209,102,0.06);
+}
+
+/* ==================== v4.0.0 Batch Mode ==================== */
+
+.batch-results {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.batch-item {
+  padding: 14px;
+  background: rgba(255,255,255,0.9);
+  border-radius: 12px;
+  border: 1px solid rgba(200,230,255,0.5);
+  box-shadow: 0 2px 8px rgba(79,172,254,0.1);
+  transition: all 0.2s ease;
+}
+
+.batch-item:hover {
+  box-shadow: 0 4px 12px rgba(79,172,254,0.15);
+}
+
+.batch-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.batch-item-header .batch-job-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.batch-item-header .batch-company {
+  font-size: 12px;
+  color: #888;
+}
+
+.batch-item-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.batch-item-actions .btn {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+/* ==================== v4.0.0 Agent Status Badge in Header ==================== */
+
+#agent-status-badge {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(255,255,255,0.25);
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 16px;
+  font-size: 11px;
+  color: #fff;
+  z-index: 2;
+  backdrop-filter: blur(6px);
+}
+
+.badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #38ef7d;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.badge-dot.idle {
+  background: #aaa;
+  animation: none;
+}
+
+.badge-dot.active {
+  background: #38ef7d;
+}
+
+.badge-dot.error {
+  background: #FF6B6B;
+}
+
+/* ==================== v4.0.0 Enhanced Error ==================== */
+
+.enhanced-error {
+  padding: 16px;
+  background: rgba(255,255,255,0.95);
+  border-radius: 14px;
+  border: 1px solid rgba(255,107,107,0.3);
+  border-left: 4px solid #FF6B6B;
+  margin-bottom: 18px;
+  animation: slideIn 0.3s ease;
+}
+
+.enhanced-error .error-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.enhanced-error .error-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #c0392b;
+  margin-bottom: 6px;
+}
+
+.enhanced-error .error-detail {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+
+.error-suggestions {
+  list-style: none;
+  margin: 0 0 12px 0;
+  padding: 0;
+}
+
+.error-suggestions li {
+  position: relative;
+  padding: 6px 10px 6px 20px;
+  font-size: 13px;
+  color: #555;
+  line-height: 1.5;
+}
+
+.error-suggestions li::before {
+  content: '>';
+  position: absolute;
+  left: 4px;
+  color: #4FACFE;
+  font-weight: 600;
+}
+
+.error-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.error-actions .btn {
+  flex: 1;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+/* ==================== v4.0.0 Confidence Bars ==================== */
+
+.confidence-bar {
+  display: inline-block;
+  width: 60px;
+  height: 6px;
+  background: rgba(200,230,255,0.5);
+  border-radius: 3px;
+  overflow: hidden;
+  vertical-align: middle;
+  margin-left: 8px;
+}
+
+.confidence-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.confidence-fill.high {
+  background: linear-gradient(90deg, #38ef7d, #11998e);
+}
+
+.confidence-fill.medium {
+  background: linear-gradient(90deg, #FFD166, #f0932b);
+}
+
+.confidence-fill.low {
+  background: linear-gradient(90deg, #FF6B6B, #ee5a24);
+}
+
+/* ==================== v4.0.0 Animations ==================== */
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes progressFill {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}

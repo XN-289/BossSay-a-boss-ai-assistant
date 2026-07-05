@@ -1,347 +1,645 @@
-# BossSay 项目全景文档
+# BossSay v4.0.0 -- AI Agentic Job Application Assistant
+
+> A Chrome extension that uses an AI agent with ReAct reasoning, self-evaluation, and adaptive learning to generate personalized, high-quality first messages on Boss Zhipin (Boss直聘).
 
 ---
 
-## 一、为什么要做这个项目
+## Table of Contents
 
-### 1.1 一个被忽视的痛点
-
-在 Boss直聘上，求职者和 HR 的第一次接触是一条**打招呼消息**。这条消息决定了 HR 会不会回复你。
-
-现实是：
-
-- 90% 的求职者发的是"你好，我对这个岗位很感兴趣"——这种消息 HR 每天收几百条，直接忽略。
-- 少数认真写的求职者，也不确定自己写的对不对——"我应该强调什么？""写太长 HR 不看，写太短没信息量。"
-- 想要投 50 个岗位，每个都写不同的消息？没人做得到。
-
-**结果：求职者花了很多时间投简历，回复率极低。不是能力不行，是第一句话就没说对。**
-
-### 1.2 这不是"自动打招呼"的问题
-
-市面上已经有很多"自动打招呼"工具——批量点击"立即沟通"、固定模板群发。但这些工具解决的是**效率问题**（怎么更快地发消息），而不是**质量问题**（怎么发更有效的消息）。
-
-BossSay 要解决的是后者：
-
-> **不是"怎么更快地发消息"，而是"怎么让 HR 愿意回复你"。**
-
-### 1.3 核心洞察
-
-HR 回复一条消息的决策时间不超过 3 秒。在这 3 秒里，HR 看的是：
-
-1. **你能不能干这个活？** — 你的技能和经历跟岗位要求匹配吗？
-2. **你什么时候能来？** — 到岗时间、实习时长、转正意愿
-3. **你是不是真的看了 JD？** — 还是群发的模板？
-
-BossSay 的 AI 就是围绕这三个问题来生成消息的。
+1. [Overview](#1-overview)
+2. [Architecture Overview](#2-architecture-overview)
+3. [Agentic Pipeline](#3-agentic-pipeline)
+4. [Memory System](#4-memory-system)
+5. [Module Reference](#5-module-reference)
+6. [Data Flow](#6-data-flow)
+7. [Configuration](#7-configuration)
+8. [Development](#8-development)
 
 ---
 
-## 二、产品定位
+## 1. Overview
 
-### 2.1 一句话定义
+### What Is BossSay
 
-> BossSay 是一个 AI 求职助手，帮你在 Boss直聘上写出 HR 愿意回复的打招呼消息。
+BossSay is a Chrome extension (Manifest V3) that helps job seekers write effective first-contact messages on Boss Zhipin. Instead of sending generic greetings like "Hi, I'm interested in this position", BossSay uses an AI agent to analyze each job posting, match it against the user's resume, and generate a personalized message that HR is more likely to reply to.
 
-### 2.2 它不是什么
+### Why It Exists
 
-| 它不是 | 它是 |
-|--------|------|
-| 自动批量投递工具 | 单条消息质量优化工具 |
-| 简历代写服务 | 简历+JD 智能匹配工具 |
-| 群发消息机器人 | 个性化消息生成器 |
-| 封号风险高的自动化插件 | 安全的手动辅助工具 |
+HR on Boss Zhipin receives hundreds of identical greetings daily. The problem is not speed -- it is quality. BossSay focuses on message quality by combining:
 
-### 2.3 价值主张
+- **Resume-to-JD matching**: The AI reads both the job description and the candidate's background.
+- **Multi-step reasoning**: A ReAct-style agent pipeline analyzes, evaluates, generates, and self-reviews each message.
+- **Adaptive learning**: The system tracks which messages get replies and optimizes over time.
 
-**对求职者：**
-- 不用想怎么写，AI 帮你写
-- 每条消息都个性化，不是模板
-- 80-150 字，HR 能一眼看完
-- 自然带出你的到岗时间、实习时长等筛选条件
+### Key Design Principles
 
-**对 HR：**
-- 收到的消息不再是"我对贵公司很感兴趣"
-- 能快速判断候选人是否匹配
-- 减少无效沟通
+1. **No fabrication** -- The AI is strictly forbidden from inventing resume details. This is a hard rule enforced in every prompt.
+2. **Three-part structure** -- Every message follows: skill match, availability, closing question.
+3. **Safety first** -- The extension never auto-sends messages. The user always reviews and manually sends.
+4. **Local-first data** -- All data stays in `chrome.storage.local`. Nothing is uploaded to external servers.
 
 ---
 
-## 三、用户分析
+## 2. Architecture Overview
 
-### 3.1 目标用户画像
-
-**用户 A：应届生小明**
-- 计算机专业大四，要投 50 个前端实习岗
-- 痛点：不知道怎么写消息，投了很多但回复率低
-- 行为：打开搜索页，逐个岗位看，看到合适的就投
-- 期望：快速生成消息，最好每条都不一样
-
-**用户 B：实习生小红**
-- 大三，想找暑期实习，时间紧迫
-- 痛点：到岗时间、实习时长是 HR 最关心的，但她不知道要在消息里写
-- 行为：筛选岗位后批量投递
-- 期望：消息里能自然带出"7月到岗，可实习4个月"
-
-**用户 C：跳槽者小李**
-- 3 年运营经验，想跳到大厂
-- 痛点：有经验但不知道怎么在 100 字内展示匹配度
-- 行为：精准投递，每个岗位都仔细看 JD
-- 期望：消息能体现"我做过 XX，跟你们要的 YY 很匹配"
-
-### 3.2 用户需求层次
+### System Diagram
 
 ```
-基础需求（Must Have）
-  ├── 能扫描岗位信息
-  ├── 能生成打招呼消息
-  └── 能填入聊天输入框
-
-期望需求（Should Have）
-  ├── 消息结合简历和 JD（个性化）
-  ├── 多种风格可选
-  └── 到岗时间、实习时长等信息自动带出
-
-兴奋需求（Delight）
-  ├── PDF 简历自动提取
-  ├── 扫描件 OCR
-  └── 消息效果追踪（回复率统计）
++------------------------------------------------------------------+
+|                       Chrome/Edge Browser                         |
+|                                                                   |
+|  +-----------------------------+                                  |
+|  |         Popup (UI)          |                                  |
+|  |  Tabs: Generate | Profile   |                                  |
+|  |  Settings | More            |                                  |
+|  |                             |                                  |
+|  |  - BossAgent.run()          |   chrome.runtime.sendMessage     |
+|  |  - BossEvaluate.record()    +-------------------------+       |
+|  |  - BossEvaluate.getStats()  |                         |       |
+|  +-----------------------------+                         |       |
+|                                                          |       |
+|  +-----------------------------+   chrome.tabs.sendMsg   |       |
+|  |     Content Script          |<------------------------+       |
+|  |  (content/content.js)       |                                  |
+|  |                             |                                  |
+|  |  - Page detection           |   Injects into zhipin.com       |
+|  |  - Job card extraction      |                                  |
+|  |  - Message injection        |                                  |
+|  |  - Floating BossSay button  |                                  |
+|  +-----------------------------+                                  |
+|                                                                   |
+|  +-----------------------------+   chrome.runtime.sendMessage     |
+|  |     Service Worker          |<---------------------------------+
+|  |  (background/service-       |
+|  |   worker.js)                |
+|  |                             |   fetch (CORS-free)
+|  |  - Storage read/write       +---------------------> AI API
+|  |  - API proxy (CORS bypass)  |                      (OpenAI-compatible)
+|  |  - Export/Import            |
+|  |  - Style config             |
+|  +-----------------------------+                                  |
+|                                                                   |
+|  +-----------------------------+                                  |
+|  |     Agent Libraries         |                                  |
+|  |                             |                                  |
+|  |  lib/agent.js    - ReAct    |  Called by Popup directly        |
+|  |  lib/evaluate.js - Stats    |                                  |
+|  |  lib/pdf-extractor.js       |                                  |
+|  +-----------------------------+                                  |
++------------------------------------------------------------------+
 ```
 
-### 3.3 用户旅程地图
+### Six Core Modules
 
-```
-阶段:    触达 → 扫描 → 生成 → 审核 → 发送 → 等待回复
-行为:    打开搜索页  点扫描  点生成  看消息  点填入  切到聊天页
-情绪:    焦虑       期待    兴奋   满意    轻松    期待
-痛点:    岗位太多    JD太长  不会写  怕写错  手动填  回复率低
-机会:    批量扫描    自动提取 AI生成  可编辑  一键填  消息优化
-```
-
----
-
-## 四、功能设计
-
-### 4.1 核心功能：AI 消息生成
-
-**输入：**
-- 求职者简历（PDF 上传或手动填写）
-- 岗位信息（从搜索页卡片自动提取）
-- 消息风格（专业/热情/幽默/简洁）
-- （可选）JD 内容（手动粘贴）
-
-**处理：**
-- AI 分析 JD 要求，匹配简历中的相关技能和经历
-- 按三段式结构生成消息：能力匹配 → 到岗信息 → 收尾提问
-- 限制 80-150 字，每句话都有信息量
-
-**输出：**
-- 个性化打招呼消息
-- 用户可编辑后一键填入聊天输入框
-
-### 4.2 功能优先级
-
-| 优先级 | 功能 | 理由 |
+| Module | File | Role |
 |--------|------|------|
-| P0 | 岗位扫描 | 核心功能，没有它就没有输入 |
-| P0 | AI 消息生成 | 核心价值，区别于所有竞品 |
-| P0 | 一键填入 | 降低操作成本 |
-| P1 | PDF 简历上传 | 减少手动输入，提升体验 |
-| P1 | 多风格支持 | 不同场景需要不同语气 |
-| P2 | 备份/恢复 | 换设备不丢失数据 |
-| P2 | 历史记录 | 方复盘哪些消息效果好 |
-| P3 | 批量扫描 | 效率提升，但不是核心 |
-| P3 | HR 活跃度过滤 | 锦上添花 |
+| **BossAgent** | `lib/agent.js` | ReAct engine -- multi-step reasoning chain for message generation |
+| **BossEvaluate** | `lib/evaluate.js` | Analytics -- tracks message outcomes, computes reply rates, A/B testing |
+| **PDF Extractor** | `lib/pdf-extractor.js` | Resume parsing -- text extraction + AI OCR for scanned PDFs |
+| **Service Worker** | `background/service-worker.js` | Background service -- storage, API proxy, export/import |
+| **Content Script** | `content/content.js` | Page interaction -- DOM extraction, message injection, floating button |
+| **Popup** | `popup/popup.js` | User interface -- four tabs, agent invocation, stats dashboard |
 
-### 4.3 AI Prompt 设计思路
-
-**为什么不用模板？**
-
-模板的问题是千篇一律。即使你有 10 个模板，HR 也能看出来是模板。
-
-**为什么用 AI？**
-
-AI 可以根据每个岗位的 JD 和求职者的简历，生成唯一的消息。50 个岗位，50 条不同的消息，每条都针对那个岗位量身定制。
-
-**Prompt 设计原则：**
-
-1. **禁止编造** — AI 只能用简历中已有的信息，不能自己编经历和数据。这是铁律。
-2. **三段式结构** — 能力匹配（你会什么）→ 到岗信息（你什么时候能来）→ 收尾提问（你认真看过 JD）
-3. **HR 视角** — 不是帮求职者"推销自己"，而是帮 HR 快速判断"这个人匹不匹配"
-4. **简洁** — 80-150 字。HR 不读长消息。
-
----
-
-## 五、竞品分析
-
-### 5.1 市场现状
-
-Boss直聘生态里的工具分三类：
-
-| 类型 | 代表 | 核心逻辑 | 问题 |
-|------|------|----------|------|
-| 批量投递 | BOSSING、油猴脚本 | 自动点击"立即沟通" | 消息是模板，回复率低 |
-| 简历优化 | 求职猫、超级简历 | 帮你写更好的简历 | 不解决"第一句话"的问题 |
-| AI 消息 | **BossSay** | 结合简历+JD 生成个性化消息 | 目前没有成熟竞品 |
-
-**BossSay 填补的是一个空白：用 AI 提升打招呼消息的质量，而不是数量。**
-
-### 5.2 竞品对比
-
-| 维度 | BossSay | BOSSING | 油猴脚本 | 求职猫 |
-|------|---------|---------|----------|--------|
-| 核心价值 | 消息质量 | 投递效率 | 投递效率 | 简历质量 |
-| 消息个性化 | ✅ AI 生成 | ❌ 固定模板 | ❌ 固定模板 | ❌ 不涉及 |
-| 结合简历 | ✅ PDF 上传 | ❌ 无 | ❌ 无 | ✅ 简历优化 |
-| 结合 JD | ✅ 自动匹配 | ❌ 不读 JD | ❌ 不读 JD | ❌ 不涉及 |
-| 封号风险 | ✅ 低（手动） | ❌ 高（自动） | ❌ 高（自动） | ✅ 无 |
-| 批量能力 | ⚠️ 单条 | ✅ 批量 | ✅ 批量 | ❌ 不涉及 |
-
-### 5.3 BossSay 的独特价值
-
-**1. 唯一一个关注"消息质量"而非"投递数量"的工具**
-
-其他工具都在想"怎么更快地发消息"，BossSay 在想"怎么让 HR 愿意回复"。这是一个不同的问题。
-
-**2. 唯一一个结合简历和 JD 生成消息的工具**
-
-竞品用固定模板，所有消息一样。BossSay 的 AI 会读 JD，匹配简历中的相关技能，每条消息都不同。
-
-**3. 安全性最高**
-
-不自动发送，不批量操作，不触发反爬。用户审核后手动发送。封号风险最低。
-
-### 5.4 竞品的可借鉴之处
-
-| 竞品 | 功能 | BossSay 可以学什么 |
-|------|------|-------------------|
-| BOSSING | 投递记录 CSV 导出 | 加入导出功能，方便复盘 |
-| BOSSING | HR 活跃度过滤 | 扫描时显示 HR 在线状态 |
-| BOSSING | 猎头/外包排除 | 自动识别并跳过猎头岗位 |
-| 求职猫 | 简历评分 | AI 评估简历和 JD 的匹配度 |
-
----
-
-## 六、技术架构
-
-### 6.1 系统架构
+### Communication Patterns
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Chrome/Edge 浏览器                     │
-│                                                          │
-│  ┌──────────────────────────────────────────────────┐    │
-│  │              Popup (弹窗界面)                      │    │
-│  │  四页签：生成 | 资料 | 设置 | 更多                 │    │
-│  │  核心逻辑：扫描、生成、PDF上传、设置管理            │    │
-│  └──────────────────┬───────────────────────────────┘    │
-│                     │ chrome.runtime.sendMessage          │
-│  ┌──────────────────▼───────────────────────────────┐    │
-│  │         Service Worker (后台服务)                  │    │
-│  │  存储读写 | AI API 代理 | 导出导入                 │    │
-│  └──────────────────┬───────────────────────────────┘    │
-│                     │ fetch                              │
-│  ┌──────────────────▼───────────────────────────────┐    │
-│  │         Content Script (注入页面)                  │    │
-│  │  搜索页卡片提取 | 消息填入 | 浮动按钮              │    │
-│  └──────────────────────────────────────────────────┘    │
-│                                                          │
-│  ┌──────────────────────────────────────────────────┐    │
-│  │         AI 客户端 + PDF 提取器                     │    │
-│  │  prompt 构造 | API 调用 | PDF 文字提取 | OCR       │    │
-│  └──────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────┘
+Popup  --[chrome.runtime.sendMessage]--> Service Worker (storage, API proxy)
+Popup  --[chrome.tabs.sendMessage]-----> Content Script (extract, inject)
+Popup  --[direct call]-----------------> BossAgent / BossEvaluate / PDFExtractor
+Content Script --[chrome.runtime.sendMessage]--> Service Worker (open popup)
 ```
 
-### 6.2 关键技术决策
+---
 
-| 决策 | 原因 |
-|------|------|
-| 从搜索页卡片提取，不爬详情页 | Boss直聘详情页 CSS 反爬太强，DOM 里只有 CSS 代码 |
-| Service worker 代理 API 调用 | 避免 CORS 限制，popup 直接 fetch 会失败 |
-| pdf.js + AI OCR | 支持中文 PDF，扫描件用视觉模型识别 |
-| 不自动发送消息 | 避免封号风险，安全性优先 |
-| `<all_urls>` host permission | 用户可能用任意 API 地址 |
+## 3. Agentic Pipeline
 
-### 6.3 数据存储
+The core of BossSay is a multi-step reasoning pipeline in `BossAgent.run()`. It mimics how a thoughtful human would write a job application message: analyze, match, plan, write, review, fix.
 
-所有数据存在 `chrome.storage.local`，不上传服务器：
+### Pipeline Steps
 
-- `bossSay_profile` — 求职者资料（简历、经历、技能、到岗时间）
-- `bossSay_apiConfig` — AI 配置（API 地址、Key、模型名）
-- `bossSay_history` — 生成历史
+```
+Step 1: Analyze JD + Match Resume    (1 API call, combined)
+  |
+  v
+Step 2: Evaluate Fit                 (local computation)
+  |
+  v
+Step 3: Generate Draft + Self-Review  (1 API call, combined)
+  |
+  v
+Step 4: Revise (if review found issues) (1 API call, conditional)
+  |
+  v
+Final: Return message + full trace
+```
+
+### Step 1: Analyze JD and Match Resume
+
+A single API call analyzes the job description and matches it against the candidate's resume. The prompt asks the AI to return structured JSON containing:
+
+- `analysis`: core requirements, nice-to-haves, role type, seniority, key skills
+- `match`: matched skills, matched experience, gaps, strengths, match ratio (0-1)
+
+This step combines two operations into one API call to reduce latency and token usage.
+
+### Step 2: Evaluate Fit (Local)
+
+No API call. The agent computes a match strategy based on the match ratio:
+
+| Match Ratio | Strategy | Emphasis |
+|-------------|----------|----------|
+| >= 70% | High match: showcase matched skills confidently | Skills |
+| 40-69% | Medium match: highlight transferable skills and learning ability | Potential |
+| < 40% | Low match: emphasize general abilities and strong interest | Attitude |
+
+### Step 3: Generate Draft and Self-Review
+
+A single API call generates the message AND performs self-review. The prompt instructs the AI to:
+
+1. Write an 80-150 character message following the three-part structure
+2. Self-check for fabrication, length, hollow phrases, availability info, and closing question
+3. Return both the message and a review object with issues, suggestions, and a score
+
+### Step 4: Revise (Conditional)
+
+If the self-review found issues (fabrication detected, too long, missing elements), the agent makes a corrective API call. It passes the original message and the list of issues, asking the AI to fix only the problems without major changes.
+
+### Trace Output
+
+Every step produces a trace entry. The full trace is returned alongside the final message and displayed in the UI as a reasoning chain panel. This gives users transparency into how the AI arrived at the message.
+
+```
+trace: [
+  { step: "analyze_jd", result: { coreRequirements: [...], keySkills: [...] } },
+  { step: "match_resume", result: { matchedSkills: [...], matchRatio: 0.75 } },
+  { step: "evaluate_fit", result: { score: 75, strategy: "..." } },
+  { step: "generate_draft", success: true },
+  { step: "review", result: { issues: [], score: 85, hasFabrication: false } }
+]
+```
+
+### Timeout Protection
+
+Each API call is wrapped in a 30-second timeout. If the AI does not respond in time, the step fails gracefully and the pipeline continues or returns an error.
 
 ---
 
-## 七、风险与挑战
+## 4. Memory System
 
-### 7.1 技术风险
+BossSay v4.0.0 introduces a structured memory system for learning from past interactions.
 
-| 风险 | 影响 | 应对 |
-|------|------|------|
-| Boss直聘加强反爬 | 扫描功能失效 | 从搜索页提取（反爬较弱） |
-| AI 模型不支持 vision | 扫描件 OCR 失败 | 提示用户使用视觉模型 |
-| 浏览器扩展 API 变更 | 功能不可用 | 跟进 Manifest V3 更新 |
+### Memory Types
 
-### 7.2 产品风险
+| Type | Storage Key | Scope | Purpose |
+|------|-------------|-------|---------|
+| **STM (Short-Term Memory)** | In-session state | Current session | Tracks the current generation context, active job, pending actions |
+| **LTM (Long-Term Memory)** | `bossSay_history` | Persistent | Stores all generation records with sent/replied status |
+| **Episodic Memory** | `bossSay_history` entries | Per-event | Each record captures a specific generation event: job title, company, style, message, match score, trace, timestamps |
+| **Semantic Memory** | `bossSay_stylePrompts`, `bossSay_profile` | Persistent | Accumulated knowledge about what works: style configurations, profile refinements |
 
-| 风险 | 影响 | 应对 |
-|------|------|------|
-| Boss直聘封禁插件 | 用户无法使用 | 不自动发送，不触发检测 |
-| AI 生成的消息质量不稳定 | 用户体验差 | prompt 持续优化，用户可编辑 |
-| 用户不知道怎么配 API | 上手门槛高 | 提供预设模型和详细教程 |
+### Learning Pipeline
 
-### 7.3 合规风险
+```
+User generates message
+       |
+       v
+BossEvaluate.recordGeneration()  -->  Saves to bossSay_history
+       |
+       v
+User marks "sent"                -->  BossEvaluate.markSent(id)
+       |
+       v
+User marks "replied"             -->  BossEvaluate.markReplied(id, true/false)
+       |
+       v
+BossEvaluate.getStats()          -->  Aggregates reply rates by style & match score
+       |
+       v
+BossEvaluate.getBestStyle()      -->  Recommends highest-performing style
+```
 
-| 风险 | 说明 |
-|------|------|
-| Boss直聘用户协议 | 自动化工具可能违反协议，但 BossSay 不自动发送，风险较低 |
-| AI 生成内容 | 生成的消息基于用户真实简历，不是虚假信息 |
-| 数据安全 | 所有数据本地存储，API Key 不上传第三方 |
+### Consolidation Process
+
+The learning pipeline consolidates data in two ways:
+
+1. **Style effectiveness**: By tracking reply rates per style (professional, friendly, humor, concise), the system can recommend which style works best for the user.
+2. **Match score correlation**: By grouping outcomes into high/mid/low match buckets, users can see whether targeting high-match jobs yields better results.
+
+History is capped at 100 records to prevent unbounded storage growth. Older records are dropped when new ones are added.
 
 ---
 
-## 八、面试 Q&A
+## 5. Module Reference
 
-### 产品角度
+### 5.1 agent.js -- BossAgent
 
-**Q: 你为什么做这个项目？**
+The ReAct reasoning engine. All methods are on the `BossAgent` object.
 
-> Boss直聘求职者发的打招呼消息千篇一律，HR 不回复。核心问题不是"怎么更快地发消息"，而是"怎么让 HR 愿意回复"。我用 AI 结合简历和 JD 生成个性化消息，解决的是消息质量问题。
+**Primary API:**
 
-**Q: 你的目标用户是谁？你怎么验证需求？**
+```javascript
+BossAgent.run({
+  profile,      // { resume, experience, skills, education, availableDate, ... }
+  jobInfo,      // { title, company, salary, location, jd }
+  style,        // "professional" | "friendly" | "humor" | "concise"
+  callAPI,      // async (messages) => string  -- AI API call function
+  stylePrompts, // { [key]: { name, prompt, instruction } }  -- custom styles
+  onProgress,   // (stepName, detail) => void  -- progress callback
+})
+// Returns: { message: string, trace: Array, matchScore: number }
+```
 
-> 主要是应届生和实习生。验证方式：1. Boss直聘日活千万，求职是刚需；2. 竞品（BOSSING、油猴脚本）有用户但消息质量差；3. 用户反馈驱动迭代（比如 AI 编造经历→加铁律）。
+**Internal Methods:**
 
-**Q: 你的产品和竞品有什么区别？**
+| Method | Description |
+|--------|-------------|
+| `analyzeAndMatch(profile, jobInfo, callAPI)` | Step 1: Combined JD analysis + resume matching via single API call |
+| `evaluateFit(matchResult)` | Step 2: Local match score and strategy computation |
+| `generateAndReview(profile, jobInfo, jdAnalysis, matchResult, evaluation, style, callAPI, stylePrompts)` | Step 3: Combined message generation + self-review via single API call |
+| `reviseMessage(message, issues, profile, jobInfo, callAPI)` | Step 4: Corrective revision based on review issues |
+| `_withTimeout(promiseFn, timeoutMs)` | Wraps a promise with a 30s timeout |
+| `_parseJSON(text)` | Robust JSON parser: strips code fences, tries direct parse, falls back to regex, handles trailing commas |
 
-> 核心区别是关注点不同。竞品关注"投递效率"（批量发消息），BossSay 关注"消息质量"（AI 生成个性化消息）。竞品用固定模板，所有消息一样。BossSay 每条消息都不同，因为每个岗位的 JD 不同，匹配的简历内容也不同。
+**Events / Progress Callbacks:**
 
-**Q: 你怎么考虑商业化？**
+| Step Name | Description |
+|-----------|-------------|
+| `analyze_jd` | "Analyzing job + matching resume..." |
+| `evaluate_fit` | "Evaluating match score..." |
+| `generate_draft` | "Generating message + reviewing..." |
+| `revise` | "Fixing message issues..." |
 
-> 短期开源免费，积累用户和口碑。中期可以上 Chrome Web Store，高级功能（批量扫描、消息效果追踪）收费。长期可以做成 SaaS，但需要服务器成本。
+**Style System:**
 
-### 技术角度
+Default styles are built-in. User-customized styles from `bossSay_stylePrompts` override defaults when an `instruction` field is present.
 
-**Q: Chrome 扩展的架构是什么？**
+| Style Key | Default Instruction |
+|-----------|-------------------|
+| `professional` | Professional, concise, confident tone. Use data and results. |
+| `friendly` | Warm, sincere, enthusiastic tone. Show genuine interest. |
+| `humor` | Light, humorous, personality-driven tone. Maintain professional baseline. |
+| `concise` | Max 120 characters. Highest information density. No filler. |
 
-> Manifest V3 架构，三个核心部分：Popup（弹窗界面）、Content Script（注入页面）、Service Worker（后台服务）。三者通过 `chrome.runtime.sendMessage` 通信。
+### 5.2 evaluate.js -- BossEvaluate
 
-**Q: 你遇到的最大技术挑战是什么？**
+Analytics and feedback module. All methods are on the `BossEvaluate` object.
 
-> Boss直聘的 CSS 反爬。详情页的 JD 内容用自定义字体+CSS 混淆，DOM 里只有 CSS 代码。尝试了 DOM 提取、拦截 API、主动调 API、注入 CSS 解锁选中，都失败了。最终参考竞品 BOSSING，从搜索页卡片提取（搜索页不混淆），JD 需用户手动粘贴。
+**Recording API:**
 
-**Q: 为什么用 Service Worker 代理 API 调用？**
+```javascript
+// Record a message generation
+BossEvaluate.recordGeneration({
+  jobTitle,     // string
+  company,      // string
+  style,        // string
+  message,      // string
+  matchScore,   // number (0-100)
+  trace,        // Array
+  userEdited,   // boolean
+})
+// Returns: recordId (string) or null
 
-> Chrome 扩展 popup 直接 fetch 外部 API 会遇到 CORS 限制。Service Worker 的 fetch 不受页面 CORS 约束，因为它是扩展的后台上下文，有 `host_permissions` 授权。
+// Mark a message as sent
+BossEvaluate.markSent(recordId)
 
-**Q: PDF 提取怎么实现的？**
+// Mark whether HR replied
+BossEvaluate.markReplied(recordId, replied)  // replied: true | false | null
+```
 
-> 三级策略：1. pdf.js 提取文字（支持中文）；2. 渲染为图片；3. AI OCR（扫描件）。对于文字版 PDF 走路径 1，扫描件走路径 2→3。
+**Analytics API:**
 
-**Q: 你的 prompt 工程做了什么？**
+```javascript
+// Get aggregate statistics
+BossEvaluate.getStats()
+// Returns: {
+//   total: number,
+//   sent: number,
+//   replied: number,
+//   replyRate: number,      // percentage
+//   byStyle: {
+//     [style]: { sent, replied, replyRate }
+//   },
+//   byMatchScore: {
+//     high: { sent, replied },  // >= 70%
+//     mid:  { sent, replied },  // 40-69%
+//     low:  { sent, replied },  // < 40%
+//   }
+// }
 
-> 从 HR 视角设计：铁律（禁止编造）、三段式（能力匹配→到岗信息→收尾提问）、四风格（专业/热情/幽默/简洁）、反面教材（列出不要写的表达）。
+// Get the style with the highest reply rate (minimum 3 sends)
+BossEvaluate.getBestStyle()
+// Returns: { style: string | null, replyRate: number }
+```
 
-**Q: 如果让你继续优化，你会做什么？**
+**A/B Testing Support:**
 
-> 1. 批量扫描搜索页所有卡片；2. HR 活跃度过滤；3. 投递记录 CSV 导出；4. 消息效果追踪（哪些风格回复率高）；5. JD 智能提取（如果 Boss直聘降低反爬强度）。
+The `byStyle` breakdown in `getStats()` enables manual A/B testing. Users can try different styles for different jobs and compare reply rates in the stats panel. `getBestStyle()` automatically identifies the winning style.
+
+### 5.3 service-worker.js -- Service Worker
+
+Background service handling storage, API proxying, and data management.
+
+**Message Types:**
+
+| Type | Direction | Purpose |
+|------|-----------|---------|
+| `OPEN_POPUP` | Content -> SW | Request to open the popup (requires user gesture) |
+| `GET_API_CONFIG` | Popup -> SW | Read API configuration from storage |
+| `SAVE_API_CONFIG` | Popup -> SW | Write API configuration to storage |
+| `GET_PROFILE` | Popup -> SW | Read user profile from storage |
+| `SAVE_PROFILE` | Popup -> SW | Write user profile to storage |
+| `GET_STYLE_PROMPTS` | Popup -> SW | Read custom style configurations |
+| `SAVE_STYLE_PROMPTS` | Popup -> SW | Write custom style configurations |
+| `EXPORT_SETTINGS` | Popup -> SW | Export all settings as JSON (with optional API key/resume exclusion) |
+| `IMPORT_SETTINGS` | Popup -> SW | Import settings from JSON file |
+| `GET_HISTORY` | Popup -> SW | Read generation history |
+| `CLEAR_HISTORY` | Popup -> SW | Clear all history records |
+| `AI_CHAT_COMPLETIONS` | Popup -> SW | Proxy an AI API call (CORS bypass) |
+
+**API Proxy:**
+
+The `AI_CHAT_COMPLETIONS` handler is critical. Chrome extension popups cannot make cross-origin fetch requests reliably. The service worker's fetch is not subject to page CORS restrictions because it runs in the extension's background context with `host_permissions` authorization.
+
+```
+Popup  --[AI_CHAT_COMPLETIONS]--> Service Worker --[fetch]--> AI API
+                                                            (OpenAI-compatible)
+```
+
+The proxy also handles reasoning model compatibility: if `choices[0].message.content` is empty, it falls back to `reasoning_content` (for models like DeepSeek).
+
+**Rate Limiting / Caching:**
+
+The service worker does not implement explicit rate limiting or caching in v4.0.0. Rate limiting is implicit through the agent pipeline (max 3-4 API calls per generation). Caching is not implemented since each generation is context-dependent.
+
+**Data Storage:**
+
+All data uses `chrome.storage.local` with the `bossSay_` prefix:
+
+| Key | Content |
+|-----|---------|
+| `bossSay_apiConfig` | `{ baseUrl, apiKey, modelName }` |
+| `bossSay_profile` | `{ bossSay_resume, bossSay_experience, bossSay_skills, bossSay_education, bossSay_availableDate, bossSay_internshipDuration, bossSay_jobType, bossSay_wantFulltime, bossSay_github, bossSay_portfolio, bossSay_selfIntro }` |
+| `bossSay_history` | Array of generation records (max 100) |
+| `bossSay_stylePrompts` | Custom style configurations |
+| `bossSay_stylePreference` | Last selected style key |
+
+### 5.4 content.js -- Content Script
+
+Injected into Boss Zhipin pages. Handles page detection, data extraction, and message injection.
+
+**Page Detection:**
+
+```javascript
+getPageType()
+// Returns: "search" | "detail" | "chat" | "other"
+//
+// search: /geek/jobs  -- job listing page with cards
+// detail: /job_detail/ or /web/geek/job  -- single job page
+// chat:   /chat  -- conversation page
+// other:  everything else
+```
+
+**Extraction -- Search Page:**
+
+`extractFromSearchPage()` iterates over all `.job-card-box` elements and extracts:
+
+- Job title, company name, salary, location
+- Experience and education tags
+- Skips cards marked "已沟通" (already contacted)
+- Returns an array of job objects
+
+**Extraction -- Detail Page:**
+
+`extractFromDetailPage()` extracts metadata from the DOM. JD extraction attempts to find text blocks matching job description patterns (`岗位职责`, `任职要求`, etc.), but this is unreliable due to Boss Zhipin's CSS obfuscation on detail pages. Users may need to manually paste the JD.
+
+**Message Injection:**
+
+`injectMessageToInput(message, retries, interval)` tries multiple selectors to find the chat input field, then sets the value using the native property descriptor (to bypass React's synthetic event system). It retries up to 10 times with 500ms intervals to handle dynamically loaded inputs.
+
+**Floating Button:**
+
+On search and detail pages, a fixed-position "BossSay" button is injected in the bottom-right corner. Clicking it sends `OPEN_POPUP` to the service worker.
+
+**URL Change Detection:**
+
+A `MutationObserver` watches for URL changes (Boss Zhipin is a SPA) and re-initializes the floating button when the page navigates.
+
+### 5.5 popup.js -- Popup UI
+
+The main user interface, organized into four tabs.
+
+**Tab 1 -- Generate:**
+
+- Page detection: checks if the current tab is on zhipin.com
+- Scan button: sends `EXTRACT_JOB_INFO` to content script, displays results
+- Editable fields: job title, company, salary, location, JD (user can override scanned values)
+- Style selector: professional / friendly / humor / concise
+- Generate button: invokes `BossAgent.run()` with full pipeline
+- Output area: editable message, match score display, reasoning trace panel
+- Fill button: sends message to content script for injection
+- Copy button: copies message to clipboard
+
+**Tab 2 -- Profile:**
+
+- PDF upload area (drag-and-drop + file picker)
+- PDF processing pipeline:
+  1. Read file as ArrayBuffer
+  2. Extract text via `PDFExtractor.extractText()`
+  3. If text is empty/short, treat as scanned PDF: render pages as images, send to AI for OCR
+  4. Send extracted text to AI for structured parsing (JSON output)
+  5. Auto-fill form fields from parsed JSON
+- Manual form fields: resume summary, experience, skills, education, availability, internship duration, job type, fulltime preference, GitHub, portfolio, self-introduction
+
+**Tab 3 -- Settings:**
+
+- API configuration: URL, API key, model name
+- Preset buttons for common providers
+- Connection test: sends a test message through the service worker proxy
+- Style editor: customize the instruction text for each style
+
+**Tab 4 -- More:**
+
+- Statistics panel: total records, sent count, reply count, reply rate; breakdowns by style and match score
+- History list: recent 20 records with "mark sent" and "mark replied" toggle buttons
+- Export/Import: full settings backup as JSON file
+- Clear history / Clear all data
+
+---
+
+## 6. Data Flow
+
+### End-to-End Flow: Scan -> Generate -> Send
+
+```
+1. User opens Boss Zhipin search page
+       |
+2. Content Script injects floating "BossSay" button
+       |
+3. User clicks extension icon -> Popup opens
+       |
+4. Popup detects zhipin.com URL -> shows "Scan" button
+       |
+5. User clicks "Scan"
+       |
+6. Popup --[EXTRACT_JOB_INFO]--> Content Script
+       |
+7. Content Script extracts job cards from DOM
+       |
+8. Content Script --[response]--> Popup
+       |   (array of { title, company, salary, location, ... })
+       |
+9. Popup displays first job in editable fields
+       |
+10. User selects style, optionally edits fields, clicks "Generate"
+       |
+11. Popup reads profile from storage (via Service Worker)
+       |
+12. Popup invokes BossAgent.run()
+       |
+13. BossAgent Step 1: Popup.callAPI() -> fetch AI API
+       |   Returns: JD analysis + resume match
+       |
+14. BossAgent Step 2: Local evaluation
+       |   Returns: match score + strategy
+       |
+15. BossAgent Step 3: Popup.callAPI() -> fetch AI API
+       |   Returns: message draft + self-review
+       |
+16. BossAgent Step 4 (conditional): Popup.callAPI() -> fetch AI API
+       |   Returns: revised message (if review found issues)
+       |
+17. BossAgent returns { message, trace, matchScore }
+       |
+18. Popup displays message, score, and reasoning trace
+       |
+19. BossEvaluate.recordGeneration() -> saves to history
+       |
+20. User reviews message, optionally edits, clicks "Fill"
+       |
+21. Popup --[FILL_MESSAGE]--> Content Script
+       |
+22. Content Script finds chat input, sets value, dispatches events
+       |
+23. User manually sends the message
+```
+
+### Fallback: Service Worker API Proxy
+
+If the popup's direct `fetch()` to the AI API fails (CORS, network error), it automatically retries through the service worker:
+
+```
+Popup.fetch() --[fails]--> Popup --[AI_CHAT_COMPLETIONS]--> Service Worker --[fetch]--> AI API
+```
+
+---
+
+## 7. Configuration
+
+### API Setup
+
+BossSay works with any OpenAI-compatible API. Configure in the Settings tab:
+
+| Field | Example | Notes |
+|-------|---------|-------|
+| API URL | `https://api.deepseek.com` | Auto-completes `/v1/chat/completions` if missing |
+| API Key | `sk-...` | Stored locally, never uploaded |
+| Model Name | `deepseek-chat` | Must match the provider's model identifier |
+
+### Model Presets
+
+Built-in presets fill the URL and model name fields with one click:
+
+| Preset | URL | Model |
+|--------|-----|-------|
+| DeepSeek | `https://api.deepseek.com` | `deepseek-chat` |
+| OpenAI | `https://api.openai.com` | `gpt-4o-mini` |
+| Custom | (user enters) | (user enters) |
+
+### Style Customization
+
+Each style has a customizable instruction string. The default instructions are:
+
+| Style | Default Instruction |
+|-------|-------------------|
+| Professional | Professional, concise, confident tone. Use data and results. |
+| Friendly | Warm, sincere, enthusiastic tone. Show genuine interest. |
+| Humor | Light, humorous, personality-driven tone. Maintain professional baseline. |
+| Concise | Max 120 characters. Highest information density. No filler. |
+
+Users can edit these in Settings -> Style Editor. Custom instructions override defaults when the `instruction` field is present.
+
+### Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+Shift+B` (Mac: `Cmd+Shift+B`) | Open BossSay popup |
+| `Ctrl+Shift+G` (Mac: `Cmd+Shift+G`) | Quick generate |
+
+---
+
+## 8. Development
+
+### File Structure
+
+```
+boss直聘打招呼浏览器插件/
+  manifest.json              -- Chrome extension manifest (v3)
+  popup/
+    popup.html               -- Popup UI markup
+    popup.js                 -- Popup logic (1245 lines)
+  background/
+    service-worker.js        -- Background service (159 lines)
+  content/
+    content.js               -- Content script (277 lines)
+  lib/
+    agent.js                 -- BossAgent ReAct engine (314 lines)
+    evaluate.js              -- BossEvaluate analytics (144 lines)
+    pdf-extractor.js         -- PDF text/image extraction
+    pdf.min.js               -- pdf.js library
+    pdf.worker.min.js        -- pdf.js web worker
+  icons/
+    icon16.png, icon48.png, icon128.png
+  docs/
+    PROJECT.md               -- This file
+```
+
+### Key Technical Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Extract from search page cards, not detail pages | Boss Zhipin's detail pages use CSS obfuscation (custom fonts, class shuffling). Search page cards are not obfuscated. |
+| Service Worker proxies API calls | Extension popups hit CORS restrictions on direct fetch. The service worker runs in extension context with `host_permissions`. |
+| Two combined API calls instead of four | Steps 1+2 and 3+4 are merged to reduce latency and token costs. Each combined call returns structured JSON. |
+| No auto-send | Safety-first design. Automated sending triggers Boss Zhipin's anti-bot detection. Users always review and send manually. |
+| `<all_urls>` host permission | Users may configure API endpoints on any domain. The permission is required for the service worker proxy to work. |
+| History capped at 100 records | Prevents unbounded storage growth while keeping enough data for meaningful statistics. |
+
+### Contributing
+
+1. Fork the repository
+2. Load the extension in Chrome: `chrome://extensions` -> Developer mode -> Load unpacked
+3. Make changes to the source files
+4. Test on Boss Zhipin (search pages and detail pages)
+5. Submit a pull request
+
+### Testing Checklist
+
+- [ ] Scan job cards on search page
+- [ ] Scan job info on detail page
+- [ ] Generate message with each style (professional, friendly, humor, concise)
+- [ ] Verify reasoning trace displays correctly
+- [ ] Test PDF upload (text-based PDF)
+- [ ] Test API connection in Settings
+- [ ] Test export/import settings
+- [ ] Verify message injection into chat input
+- [ ] Mark messages as sent/replied and check stats
+- [ ] Test with different AI providers (DeepSeek, OpenAI, etc.)
+
+### Roadmap Ideas
+
+- Batch scan all visible job cards
+- HR activity status filtering
+- CSV export of application history
+- Message effectiveness tracking by keyword patterns
+- Smart JD extraction from detail pages (when Boss Zhipin reduces obfuscation)
+- Multi-language support

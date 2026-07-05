@@ -10,13 +10,14 @@
   <div class="container">
     <!-- 头部 -->
     <header class="header">
-      <h1>🎯 BossSay</h1>
-      <p class="subtitle">AI 智能打招呼助手 v2.0</p>
+      <h1>🎯 BossSay <span class="agent-status-badge" id="agent-status-badge" title="Agent 状态">🔵</span></h1>
+      <p class="subtitle">AI 智能打招呼助手 v4.0.0</p>
     </header>
 
     <!-- 导航标签 -->
     <nav class="tabs">
       <button class="tab active" data-tab="generate">✨ 生成</button>
+      <button class="tab" data-tab="agent">🧠 Agent</button>
       <button class="tab" data-tab="profile">👤 资料</button>
       <button class="tab" data-tab="settings">⚙️ 设置</button>
       <button class="tab" data-tab="more">📦 更多</button>
@@ -51,6 +52,24 @@
         <div class="form-group form-group-sm">
           <label>岗位描述 <span class="optional">可选，手动粘贴可提升精准度</span></label>
           <textarea id="jd-input" rows="3" placeholder="从岗位详情页复制 JD 粘贴到这里..."></textarea>
+        </div>
+      </div>
+
+      <!-- Agent 推荐卡片区域 -->
+      <div class="recommendation-cards" id="recommendation-cards" style="display:none">
+        <div class="rec-card" id="rec-style-card" style="display:none">
+          <span class="rec-icon">💡</span>
+          <div class="rec-body">
+            <span class="rec-label">推荐风格：</span>
+            <span class="rec-value" id="rec-style-value">--</span>
+          </div>
+        </div>
+        <div class="rec-card" id="rec-tip-card" style="display:none">
+          <span class="rec-icon">📌</span>
+          <div class="rec-body">
+            <span class="rec-label">策略提示：</span>
+            <span class="rec-value" id="rec-tip-value">--</span>
+          </div>
         </div>
       </div>
 
@@ -92,6 +111,93 @@
 
       <div class="error-msg" id="error-msg" style="display:none"></div>
       <div class="success-msg" id="success-msg" style="display:none"></div>
+    </div>
+
+    <!-- ==================== Agent 智能面板 ==================== -->
+    <div class="tab-content" id="tab-agent">
+      <h3 class="section-title">🤖 Agent 状态</h3>
+      <div class="agent-dashboard">
+        <div class="agent-state-row">
+          <span class="agent-state-indicator" id="agent-state-indicator">●</span>
+          <span class="agent-state-label" id="agent-state-label">就绪</span>
+        </div>
+        <div class="agent-step-row" id="agent-step-row" style="display:none">
+          <span class="agent-step-label">当前步骤：</span>
+          <span class="agent-step-value" id="agent-step-value">--</span>
+        </div>
+        <div class="agent-progress-wrap" id="agent-progress-wrap" style="display:none">
+          <div class="agent-progress-bar">
+            <div class="agent-progress-fill" id="agent-progress-fill" style="width:0%"></div>
+          </div>
+          <span class="agent-progress-text" id="agent-progress-text">0%</span>
+        </div>
+      </div>
+
+      <h3 class="section-title">🧩 记忆洞察</h3>
+      <div class="memory-panel" id="memory-panel">
+        <div class="memory-section">
+          <label>学习到的模式</label>
+          <div class="memory-items" id="memory-patterns">
+            <p class="help-text">暂无学习数据，使用后自动积累</p>
+          </div>
+        </div>
+        <div class="memory-section">
+          <label>公司知识库</label>
+          <div class="memory-items" id="memory-companies">
+            <p class="help-text">暂无公司数据，扫描岗位后自动记录</p>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="section-title">💡 智能推荐</h3>
+      <div class="recommendations-panel" id="recommendations-panel">
+        <div class="rec-section">
+          <label>风格建议</label>
+          <div class="rec-items" id="agent-rec-styles">
+            <p class="help-text">分析岗位后自动推荐最佳风格</p>
+          </div>
+        </div>
+        <div class="rec-section">
+          <label>策略建议</label>
+          <div class="rec-items" id="agent-rec-tips">
+            <p class="help-text">根据历史数据提供针对性建议</p>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="section-title">🎯 目标追踪</h3>
+      <div class="goal-tracker">
+        <div class="goal-item">
+          <div class="goal-header">
+            <span class="goal-label">回复率目标</span>
+            <span class="goal-value" id="goal-reply-rate">0%</span>
+          </div>
+          <div class="goal-bar">
+            <div class="goal-bar-fill" id="goal-reply-fill" style="width:0%"></div>
+          </div>
+          <input type="range" id="goal-reply-target" min="0" max="100" value="30" class="goal-slider">
+          <span class="goal-target-label">目标：<span id="goal-reply-target-val">30%</span></span>
+        </div>
+        <div class="goal-item">
+          <div class="goal-header">
+            <span class="goal-label">面试邀约目标</span>
+            <span class="goal-value" id="goal-interview-count">0</span>
+          </div>
+          <div class="goal-bar">
+            <div class="goal-bar-fill" id="goal-interview-fill" style="width:0%"></div>
+          </div>
+          <input type="range" id="goal-interview-target" min="0" max="50" value="5" class="goal-slider">
+          <span class="goal-target-label">目标：<span id="goal-interview-target-val">5</span> 次</span>
+        </div>
+      </div>
+
+      <h3 class="section-title">⚡ 快捷操作</h3>
+      <div class="quick-actions">
+        <button class="btn btn-primary" id="btn-agent-scan-gen">🔍 扫描 + 生成</button>
+        <button class="btn btn-secondary" id="btn-batch-toggle">📦 批量模式</button>
+      </div>
+      <div class="success-msg" id="agent-success" style="display:none"></div>
+      <div class="error-msg" id="agent-error" style="display:none"></div>
     </div>
 
     <!-- ==================== 我的资料页面 ==================== -->
@@ -280,8 +386,9 @@
 
       <h3 class="section-title" style="margin-top:24px">ℹ️ 关于</h3>
       <div class="about-info">
-        <p><strong>BossSay</strong> v2.0.0</p>
-        <p>基于 AI 的 Boss 直聘智能打招呼助手</p>
+        <p><strong>BossSay</strong> v4.0.0</p>
+        <p>基于 AI Agent 的 Boss 直聘智能打招呼助手</p>
+        <p>具备自主学习、记忆分析、智能推荐等 Agentic 能力</p>
         <p>开源协议：MIT License</p>
         <p><a href="https://github.com/XN-289/Bosssay-a-boss-ai-assistant" target="_blank">GitHub 仓库</a></p>
       </div>
@@ -289,12 +396,17 @@
 
     <!-- 底部 -->
     <footer class="footer">
-      <p>BossSay v2.0.0</p>
+      <p>BossSay v4.0.0</p>
+      <p class="footer-shortcuts">
+        <kbd>Ctrl+Shift+B</kbd> 打开插件 &nbsp;|&nbsp;
+        <kbd>Ctrl+Shift+G</kbd> 快速生成
+      </p>
     </footer>
   </div>
 
   <script src="../lib/pdf.min.js"></script>
   <script src="../lib/pdf-extractor.js"></script>
+  <script src="../lib/memory.js"></script>
   <script src="../lib/agent.js"></script>
   <script src="../lib/evaluate.js"></script>
   <script src="popup.js"></script>

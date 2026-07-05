@@ -1,15 +1,18 @@
 {
   "manifest_version": 3,
   "name": "BossSay - Boss直聘AI智能打招呼助手",
-  "version": "3.0.0",
-  "description": "基于AI Agent的Boss直聘智能打招呼插件，多步推理链分析JD匹配简历，生成个性化消息",
+  "version": "4.0.0",
+  "description": "基于AI Agent的Boss直聘智能打招呼插件，具备自主学习、记忆分析、多步推理等Agentic能力，智能优化求职打招呼策略",
   "author": "XN-289",
   "homepage_url": "https://github.com/XN-289/Bosssay-a-boss-ai-assistant",
   "permissions": [
     "activeTab",
     "storage",
     "scripting",
-    "clipboardRead"
+    "clipboardRead",
+    "notifications",
+    "contextMenus",
+    "alarms"
   ],
   "host_permissions": [
     "https://www.zhipin.com/*",
@@ -30,6 +33,22 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
+  "commands": {
+    "open-popup": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+B",
+        "mac": "Command+Shift+B"
+      },
+      "description": "打开 BossSay 弹窗"
+    },
+    "quick-generate": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+G",
+        "mac": "Command+Shift+G"
+      },
+      "description": "快速生成打招呼消息"
+    }
+  },
   "content_scripts": [
     {
       "matches": [
@@ -39,6 +58,13 @@
         "https://zhipin.com/web/geek/job/*",
         "https://www.zhipin.com/geek/*",
         "https://zhipin.com/geek/*"
+      ],
+      "js": ["content/content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.zhipin.com/web/geek/chat*"
       ],
       "js": ["content/content.js"],
       "run_at": "document_idle"
